@@ -1,5 +1,7 @@
 .App {
   text-align: center;
+  background-color: var(--background-color);
+  color: var(--text-color);
 }
 
 .App-logo {
@@ -14,18 +16,18 @@
 }
 
 .App-header {
-  background-color: #282c34;
+  background-color: var(--background-color);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   font-size: calc(10px + 2vmin);
-  color: white;
+  color: var(--text-color);
 }
 
 .App-link {
-  color: #61dafb;
+  color: var(--primary-color);
 }
 
 @keyframes App-logo-spin {
@@ -41,24 +43,41 @@
 body {
   margin: 0;
   overflow: hidden;
+  background-color: var(--background-color);
 }
 
 #controls {
   position: absolute;
   top: 10px;
   left: 10px;
-  background: white;
+  background: var(--background-color);
   padding: 10px;
   z-index: 10;
+  border-radius: var(--border-radius);
+  box-shadow: 0 0 10px var(--shadow-color);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+#controls.sidebar-open {
+  transform: translateX(200px);
+  box-shadow: 5px 0 15px var(--shadow-color);
 }
 
 #nodeInfo {
   position: absolute;
   top: 10px;
   right: 10px;
-  background: white;
+  background: var(--background-color);
   padding: 10px;
   z-index: 10;
+  border-radius: var(--border-radius);
+  box-shadow: 0 0 10px var(--shadow-color);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+#nodeInfo.sidebar-open {
+  transform: translateX(-200px);
+  box-shadow: -5px 0 15px var(--shadow-color);
 }
 
 #loginModal {
@@ -74,21 +93,35 @@ body {
 }
 
 #loginModalContent {
-  background-color: #fefefe;
+  background-color: var(--background-color);
   margin: 15% auto;
   padding: 20px;
-  border: 1px solid #888;
+  border: 1px solid #ccc;
   width: 30%;
+  border-radius: var(--border-radius);
+  box-shadow: 0 0 10px var(--shadow-color);
 }
 
 #loginModalContent button {
   margin: 10px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--border-radius);
+  background-color: var(--primary-color);
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+#loginModalContent button:hover {
+  background-color: var(--secondary-color);
 }
 
 .tab {
   overflow: hidden;
   border: 1px solid #ccc;
-  background-color: #f1f1f1;
+  background-color: var(--background-color);
+  border-radius: var(--border-radius);
 }
 
 .tab button {
@@ -102,11 +135,12 @@ body {
 }
 
 .tab button:hover {
-  background-color: #ddd;
+  background-color: var(--hover-color);
 }
 
 .tab button.active {
-  background-color: #ccc;
+  background-color: var(--primary-color);
+  color: white;
 }
 
 .tabcontent {
@@ -114,4 +148,32 @@ body {
   padding: 6px 12px;
   border: 1px solid #ccc;
   border-top: none;
+  border-radius: var(--border-radius);
+}
+
+#buildingName {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--primary-color);
+  color: white;
+  padding: 10px;
+  border-radius: 5px;
+  box-shadow: 0 0 10px var(--shadow-color);
+  z-index: 1000;
+}
+
+button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: var(--secondary-color);
 }

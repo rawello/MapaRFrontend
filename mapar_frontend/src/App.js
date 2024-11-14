@@ -4,6 +4,15 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Box, Line } from '@react-three/drei';
+import NodeControls from './NodeControls';
+import CreateNodeControls from './CreateNodeControls';
+import NodeInfo from './NodeInfo';
+import Sidebar from './Sidebar';
+import LoginModal from './LoginModal';
+import BuildingName from './BuildingName';
+import ModelManager from './ModelManager';
+import AxisArrows from './AxisArrows';
+import './App.css';
 
 const App = () => {
   const [nodes, setNodes] = useState([]);
@@ -12,8 +21,10 @@ const App = () => {
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [loginTab, setLoginTab] = useState('login');
   const [isDragging, setIsDragging] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [models, setModels] = useState([]);
+  const [isTokenValid, setIsTokenValid] = useState(false);
 
   const sceneRef = useRef();
   const cameraRef = useRef();
@@ -30,12 +41,24 @@ const App = () => {
   const base_url = "http://localhost:8080";
 
   useEffect(() => {
-    if (!token) {
-      setShowLoginModal(true);
-    } else {
-      loadBuildings();
-    }
-  }, [token]);
+    const checkToken = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const isValid = await validateToken(token);
+        setIsTokenValid(isValid);
+        if (!isValid) {
+          setShowLoginModal(true);
+        } else {
+          setToken(token);
+          loadBuildings();
+        }
+      } else {
+        setShowLoginModal(true);
+      }
+    };
+
+    checkToken();
+  }, []);
 
   useEffect(() => {
     window.addEventListener('mousedown', onMouseDown, false);
@@ -52,6 +75,7 @@ const App = () => {
   useEffect(() => {
     if (selectedBuilding) {
       loadNodesForBuilding(selectedBuilding);
+      loadModelsForBuilding(selectedBuilding);
     }
   }, [selectedBuilding]);
 
@@ -282,7 +306,6 @@ const App = () => {
 
   const onMouseMove = (event) => {
     if (isDragging && !selectedNode) {
-      // Убираем вызов handleMouseMove
     }
   };
 
@@ -308,13 +331,13 @@ const App = () => {
         if (selectedObject.userData && selectedObject.userData.id) {
           highlightSelectedNode(selectedObject.userData.id, selectedNode);
           setSelectedNode(selectedObject);
-          // Обновляем поля ввода информации о выбранной точке
           document.getElementById('nodeId').value = selectedObject.userData.id;
           document.getElementById('nodeLabel').value = selectedObject.userData.name;
           document.getElementById('nodeNeighbors').value = selectedObject.userData.neighbors;
           document.getElementById('nodeX').value = selectedObject.position.x;
           document.getElementById('nodeY').value = selectedObject.position.y;
           document.getElementById('nodeZ').value = selectedObject.position.z;
+          highlightSelectedNode(selectedNode.id, selectedNode)
         }
       } else {
         if (selectedNode) {
@@ -322,7 +345,6 @@ const App = () => {
           transformControlsRef.current.detach();
           setSelectedNode(null);
         }
-        // Если нажатие не на точку, управляем камерой
         controlsRef.current.enabled = true;
       }
     }
@@ -406,78 +428,109 @@ const App = () => {
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    setToken('');
+    setShowLoginModal(true);
+  };
+
+  const loadModelsForBuilding = (buildingId) => {
+    const modelsData = JSON.parse(localStorage.getItem(`models_${buildingId}`)) || [];
+    setModels(modelsData);
+    modelsData.forEach(model => {
+      const { url, position } = model;
+      const loader = new THREE.ObjectLoader();
+      loader.load(url, (object) => {
+        object.position.set(...position);
+        sceneRef.current.add(object);
+      });
+    });
+  };
+
+  const saveModelForBuilding = (buildingId, modelUrl, position) => {
+    const modelsData = JSON.parse(localStorage.getItem(`models_${buildingId}`)) || [];
+    modelsData.push({ url: modelUrl, position });
+    localStorage.setItem(`models_${buildingId}`, JSON.stringify(modelsData));
+    setModels(modelsData);
+  };
+
+  const handleModelUpload = (event) => {
+    const file = event.target.files[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const modelUrl = e.target.result;
+      const position = [0, 0, 0];
+      saveModelForBuilding(selectedBuilding, modelUrl, position);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleMoveNode = (axis) => {
+    if (selectedNode) {
+      const step = 0.1;
+      switch (axis) {
+        case 'x':
+          selectedNode.position.x += step;
+          break;
+        case 'y':
+          selectedNode.position.y += step;
+          break;
+        case 'z':
+          selectedNode.position.z += step;
+          break;
+        default:
+          break;
+      }
+      updateLines(selectedNode);
+    }
+  };
+
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      <div id="controls" style={{ position: 'absolute', top: '10px', left: '10px', zIndex: 1000 }}>
-        <h3>Edit Node</h3>
-        <div>
-          <label htmlFor="buildingId">Building:</label>
-          <select id="buildingId" value={selectedBuilding || ''} onChange={(e) => setSelectedBuilding(e.target.value)}>
-            {buildings.map(building => (
-              <option key={building.id} value={building.id}>{building.name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="nodeId">Node ID:</label>
-          <select id="nodeId" value={selectedNode ? selectedNode.userData.id : ''} onChange={(e) => highlightSelectedNode(e.target.value)}>
-            {nodes.map(node => (
-              <option key={node.id} value={node.id}>{node.id}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="nodeLabel">Name:</label>
-          <input type="text" id="nodeLabel" defaultValue={selectedNode ? selectedNode.userData.name : ''} />
-        </div>
-        <div>
-          <label htmlFor="nodeNeighbors">Neighbors:</label>
-          <input type="text" id="nodeNeighbors" defaultValue={selectedNode ? selectedNode.userData.neighbors : ''} />
-        </div>
-        <div>
-          <label htmlFor="nodeX">X:</label>
-          <input type="number" id="nodeX" step="0.1" defaultValue={selectedNode ? selectedNode.position.x : ''} />
-        </div>
-        <div>
-          <label htmlFor="nodeY">Y:</label>
-          <input type="number" id="nodeY" step="0.1" defaultValue={selectedNode ? selectedNode.position.y : ''} />
-        </div>
-        <div>
-          <label htmlFor="nodeZ">Z:</label>
-          <input type="number" id="nodeZ" step="0.1" defaultValue={selectedNode ? selectedNode.position.z : ''} />
-        </div>
-        <button id="updateNode" onClick={updateNode}>Update Node</button>
-        <button id="deleteNode" onClick={deleteNode}>Delete Node</button>
-        <h3>Create Node</h3>
-        <div>
-          <label htmlFor="newNodeLabel">Name:</label>
-          <input type="text" id="newNodeLabel" />
-        </div>
-        <div>
-          <label htmlFor="newNodeNeighbors">Neighbors:</label>
-          <input type="text" id="newNodeNeighbors" />
-        </div>
-        <div>
-          <label htmlFor="newNodeX">X:</label>
-          <input type="number" id="newNodeX" step="0.1" />
-        </div>
-        <div>
-          <label htmlFor="newNodeY">Y:</label>
-          <input type="number" id="newNodeY" step="0.1" />
-        </div>
-        <div>
-          <label htmlFor="newNodeZ">Z:</label>
-          <input type="number" id="newNodeZ" step="0.1" />
-        </div>
-        <button id="createNode" onClick={createNode}>Create Node</button>
-      </div>
-      <div id="nodeInfo" style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 1000 }}>
-        <h3>Node Info</h3>
-        <div>
-          <label htmlFor="nodeCoordinates">Coordinates:</label>
-          <span id="nodeCoordinates">{selectedNode ? selectedNode.userData.translation : ''}</span>
+      <Sidebar
+        buildings={buildings}
+        selectedBuilding={selectedBuilding}
+        setSelectedBuilding={setSelectedBuilding}
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
+      />
+      <BuildingName buildingName={buildings.find(building => building.id === selectedBuilding)?.name} />
+      <div id="controls" className={isSidebarOpen ? 'sidebar-open' : ''} style={{ position: 'absolute', top: '10px', left: '75px', zIndex: 1000 }}>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <NodeControls
+            selectedNode={selectedNode}
+            buildings={buildings}
+            selectedBuilding={selectedBuilding}
+            setSelectedBuilding={setSelectedBuilding}
+            updateNode={updateNode}
+            deleteNode={deleteNode}
+            nodes={nodes}
+            highlightSelectedNode={highlightSelectedNode}
+          />
+          <ModelManager scene={sceneRef.current} />
+          <CreateNodeControls createNode={createNode} />
+          <NodeInfo selectedNode={selectedNode} />
         </div>
       </div>
+      {isTokenValid ? (
+        <button
+          style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 1000 }}
+          onClick={handleLogout}
+        >
+          Выйти
+        </button>
+      ) : (
+        <button
+          style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 1000 }}
+          onClick={() => {
+            console.log(showLoginModal)
+            setShowLoginModal(!showLoginModal)
+          }
+          }
+        >
+          Войти
+        </button>
+      )}
       <Canvas
         style={{ width: '100%', height: '100%' }}
         camera={{ position: [0, 0, 20] }}
@@ -505,59 +558,33 @@ const App = () => {
               <Box position={position} args={[0.5, 0.5, 0.5]}>
                 <meshBasicMaterial color={0x00ff00} visible={false} />
               </Box>
+              {selectedNode && selectedNode.userData.id === node.id && (
+                <AxisArrows position={position} onMove={handleMoveNode} />
+              )}
             </group>
           );
         })}
         {linesRef.current.map((line, index) => (
           <Line key={index} points={line.geometry.attributes.position.array.reduce((acc, val) => acc.concat(val), [])} color={0x0000ff} />
         ))}
+        {models.map((model, index) => {
+          const { url, position } = model;
+          return (
+            <mesh key={index} position={position}>
+              <boxGeometry args={[1, 1, 1]} />
+              <meshBasicMaterial color={0x0000ff} />
+            </mesh>
+          );
+        })}
       </Canvas>
-      {showLoginModal && (
-        <div id="loginModal" style={{ display: 'block', position: 'fixed', zIndex: 1000, left: 0, top: 0, width: '100%', height: '100%', overflow: 'auto', backgroundColor: 'rgba(0, 0, 0, 0.4)' }}>
-          <div id="loginModalContent" style={{ backgroundColor: '#fefefe', margin: '15% auto', padding: '20px', border: '1px solid #888', width: '30%' }}>
-            <div className="tab">
-              <button className={`tablinks ${loginTab === 'login' ? 'active' : ''}`} onClick={() => setLoginTab('login')}>Login</button>
-              <button className={`tablinks ${loginTab === 'register' ? 'active' : ''}`} onClick={() => setLoginTab('register')}>Register</button>
-            </div>
-            {loginTab === 'login' && (
-              <div id="login" className="tabcontent">
-                <h2>Please Login</h2>
-                <form id="loginForm" onSubmit={(e) => {
-                  e.preventDefault();
-                  const username = document.getElementById('loginUsername').value;
-                  const password = document.getElementById('loginPassword').value;
-                  login(username, password);
-                }}>
-                  <label htmlFor="loginUsername">Username:</label>
-                  <input type="text" id="loginUsername" name="username" /><br />
-                  <label htmlFor="loginPassword">Password:</label>
-                  <input type="password" id="loginPassword" name="password" /><br />
-                  <button type="submit">Login</button>
-                </form>
-              </div>
-            )}
-            {loginTab === 'register' && (
-              <div id="register" className="tabcontent">
-                <h2>Please Register</h2>
-                <form id="registerForm" onSubmit={(e) => {
-                  e.preventDefault();
-                  const username = document.getElementById('registerUsername').value;
-                  const password = document.getElementById('registerPassword').value;
-                  register(username, password);
-                }}>
-                  <label htmlFor="registerUsername">Username:</label>
-                  <input type="text" id="registerUsername" name="username" /><br />
-                  <label htmlFor="registerPassword">Password:</label>
-                  <input type="password" id="registerPassword" name="password" /><br />
-                  <button type="submit">Register</button>
-                </form>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <LoginModal
+        show={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onLogin={login}
+        onRegister={register}
+      />
     </div>
   );
-};
+}
 
 export default App;
