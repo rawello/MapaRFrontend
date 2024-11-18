@@ -1,9 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, useState, useEffect, useRef } from "react";
+import { Canvas, useThree, useFrame } from "@react-three/fiber";
+import { OrbitControls, TransformControls, useCursor } from "@react-three/drei";
+import { proxy, useSnapshot } from "valtio";
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { TransformControls } from 'three/addons/controls/TransformControls.js';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Box, Line } from '@react-three/drei';
 import NodeControls from './NodeControls';
 import CreateNodeControls from './CreateNodeControls';
 import NodeInfo from './NodeInfo';
@@ -11,34 +10,86 @@ import Sidebar from './Sidebar';
 import LoginModal from './LoginModal';
 import BuildingName from './BuildingName';
 import ModelManager from './ModelManager';
-import AxisArrows from './AxisArrows';
 import './App.css';
 
-const App = () => {
+// Reactive state model, using Valtio ...
+const modes = ["translate", "rotate", "scale"];
+const state = proxy({ current: null, mode: 0 });
+
+const base_url = "http://localhost:8080";
+
+function Node({ name, position, color, onClick, onContextMenu, onPointerOver, onPointerOut, setHovered }) {
+  // Ties this component to the state model
+  const snap = useSnapshot(state);
+  // Feed hover state into useCursor, which sets document.body.style.cursor to pointer|auto
+  const [hovered, setHoveredState] = useState(false);
+  useCursor(hovered);
+
+  return (
+    <group
+      // Click sets the group as the new target
+      onClick={onClick}
+      // If a click happened but this group wasn't hit we null out the target,
+      // This works because missed pointers fire before the actual hits
+      onPointerMissed={(e) => e.type === "click" && (state.current = null)}
+      // Right click cycles through the transform modes
+      onContextMenu={onContextMenu}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHoveredState(true);
+        onPointerOver();
+      }}
+      onPointerOut={(e) => {
+        setHoveredState(false);
+        onPointerOut();
+      }}
+      name={name}
+      position={position}
+      dispose={null}
+    >
+      <mesh>
+        <boxGeometry args={[0.3, 0.3, 0.3]} />
+        <meshBasicMaterial color={snap.current === name ? "#ff6080" : color} />
+      </mesh>
+    </group>
+  );
+}
+
+function Controls({ selectedModel }) {
+  // Get notified on changes to state
+  const snap = useSnapshot(state);
+  const scene = useThree((state) => state.scene);
+  return (
+    <>
+      {snap.current && <TransformControls object={scene.getObjectByName(snap.current)} mode={modes[snap.mode]} />}
+      {selectedModel && <TransformControls object={selectedModel} mode={modes[snap.mode]} />}
+      <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 1.75} />
+    </>
+  );
+}
+
+function App() {
   const [nodes, setNodes] = useState([]);
   const [buildings, setBuildings] = useState([]);
   const [selectedNode, setSelectedNode] = useState(null);
   const [selectedBuilding, setSelectedBuilding] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [models, setModels] = useState([]);
   const [isTokenValid, setIsTokenValid] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(null);
+  const [favorites, setFavorites] = useState([]);
 
   const sceneRef = useRef();
   const cameraRef = useRef();
   const rendererRef = useRef();
-  const controlsRef = useRef();
-  const transformControlsRef = useRef();
   const raycasterRef = useRef(new THREE.Raycaster());
   const mouseRef = useRef(new THREE.Vector2());
   const gridHelperRef = useRef();
   const linesRef = useRef([]);
   const hitboxesRef = useRef([]);
-  const nodeMeshes = useRef([]);
-
-  const base_url = "http://localhost:8080";
+  const nodeGroups = useRef([]);
 
   useEffect(() => {
     const checkToken = async () => {
@@ -51,6 +102,7 @@ const App = () => {
         } else {
           setToken(token);
           loadBuildings();
+          loadFavorites();
         }
       } else {
         setShowLoginModal(true);
@@ -61,16 +113,36 @@ const App = () => {
   }, []);
 
   useEffect(() => {
+    if (selectedNode) {
+      document.getElementById('nodeId').value = selectedNode.userData.nodeId;
+      document.getElementById('nodeLabel').value = selectedNode.userData.name;
+      document.getElementById('nodeNeighbors').value = selectedNode.userData.neighbors;
+      document.getElementById('nodeX').value = selectedNode.position.x;
+      document.getElementById('nodeY').value = selectedNode.position.y;
+      document.getElementById('nodeZ').value = selectedNode.position.z;
+    } else {
+      document.getElementById('nodeId').value = '';
+      document.getElementById('nodeLabel').value = '';
+      document.getElementById('nodeNeighbors').value = '';
+      document.getElementById('nodeX').value = '';
+      document.getElementById('nodeY').value = '';
+      document.getElementById('nodeZ').value = '';
+    }
+  }, [selectedNode]);
+
+  useEffect(() => {
+    console.log('Nodes state changed:', nodes);
+  }, [nodes]);
+
+  useEffect(() => {
     window.addEventListener('mousedown', onMouseDown, false);
-    window.addEventListener('mousemove', onMouseMove, false);
     window.addEventListener('mouseup', onMouseUp, false);
 
     return () => {
       window.removeEventListener('mousedown', onMouseDown, false);
-      window.removeEventListener('mousemove', onMouseMove, false);
       window.removeEventListener('mouseup', onMouseUp, false);
     };
-  }, [selectedNode, isDragging]);
+  }, []);
 
   useEffect(() => {
     if (selectedBuilding) {
@@ -133,6 +205,7 @@ const App = () => {
   const loadNodesForBuilding = async (buildingId) => {
     try {
       const nodes = await fetchNodesForBuilding(buildingId);
+      console.log('Fetched nodes:', nodes);
       setNodes(nodes);
       clearScene();
       renderNodes(nodes);
@@ -145,13 +218,13 @@ const App = () => {
   const clearScene = () => {
     if (sceneRef.current) {
       sceneRef.current.children.forEach(child => {
-        if (child !== gridHelperRef.current && child !== transformControlsRef.current) {
+        if (child !== gridHelperRef.current) {
           sceneRef.current.remove(child);
         }
       });
       linesRef.current = [];
       hitboxesRef.current = [];
-      nodeMeshes.current = [];
+      nodeGroups.current = [];
     }
   };
 
@@ -168,22 +241,20 @@ const App = () => {
       }
 
       const position = new THREE.Vector3(...node.translation.split(',').map(parseFloat));
-      const geom = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-      const material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-      const mesh = new THREE.Mesh(geom, material);
-      mesh.position.copy(position);
-      mesh.userData.id = node.id;
-      mesh.userData.name = node.name;
-      mesh.userData.neighbors = node.neighbors;
-      mesh.userData.translation = node.translation;
-      sceneRef.current.add(mesh);
-      nodeMeshes.current[index] = mesh;
+      const group = new THREE.Group();
+      group.position.copy(position);
+      group.userData.nodeId = node.id;
+      group.userData.name = node.name;
+      group.userData.neighbors = node.neighbors; // Добавлено
+      group.userData.translation = node.translation;
+      sceneRef.current.add(group);
+      nodeGroups.current[index] = group;
 
-      const hitboxGeom = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+      const hitboxGeom = new THREE.SphereGeometry(0.5, 32, 32);
       const hitboxMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, visible: false });
       const hitbox = new THREE.Mesh(hitboxGeom, hitboxMaterial);
       hitbox.position.copy(position);
-      hitbox.userData.id = node.id;
+      hitbox.userData.nodeId = node.id;
       sceneRef.current.add(hitbox);
       hitboxesRef.current.push(hitbox);
 
@@ -203,22 +274,8 @@ const App = () => {
     });
   };
 
-  const highlightSelectedNode = (nodeId, currentSelectedNode) => {
-    if (currentSelectedNode) {
-      currentSelectedNode.material.color.set(0x00ff00);
-      transformControlsRef.current.detach();
-    }
-
-    const selectedNode = nodeMeshes.current.find(mesh => mesh.userData.id == nodeId);
-    if (selectedNode) {
-      selectedNode.material.color.set(0xff0000);
-      transformControlsRef.current.attach(selectedNode);
-      setSelectedNode(selectedNode);
-    }
-  };
-
   const updateNode = () => {
-    const nodeId = selectedNode.userData.id;
+    const nodeId = selectedNode.userData.nodeId;
     const nodeLabel = document.getElementById('nodeLabel').value;
     const nodeNeighbors = document.getElementById('nodeNeighbors').value;
     const nodeX = document.getElementById('nodeX').value;
@@ -249,7 +306,7 @@ const App = () => {
   };
 
   const deleteNode = () => {
-    const nodeId = selectedNode.userData.id;
+    const nodeId = selectedNode.userData.nodeId;
     if (nodeId) {
       fetch(base_url + `/api/nodes/${nodeId}`, {
         method: 'DELETE',
@@ -300,74 +357,37 @@ const App = () => {
   };
 
   const onMouseDown = (event) => {
-    setIsDragging(true);
     onMouseClick(event);
   };
 
-  const onMouseMove = (event) => {
-    if (isDragging && !selectedNode) {
-    }
-  };
-
   const onMouseUp = () => {
-    setIsDragging(false);
+    //setIsDragging(false);
   };
 
   const onMouseClick = (event) => {
-    const target = event.target;
-    console.log('Event target:', event.target);
-    console.log('Event target nodeName:', event.target.nodeName);
-    if (target.nodeName && target.nodeName === 'CANVAS') {
-      if (!cameraRef.current || !sceneRef.current) return;
+    if (!cameraRef.current || !sceneRef.current) return;
 
-      mouseRef.current.x = (event.clientX / window.innerWidth) * 2 - 1;
-      mouseRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    mouseRef.current.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouseRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
-      const intersects = raycasterRef.current.intersectObjects(hitboxesRef.current, true);
+    raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+    const intersects = raycasterRef.current.intersectObjects(hitboxesRef.current, true);
 
-      if (intersects.length > 0) {
-        const selectedObject = intersects[0].object;
-        if (selectedObject.userData && selectedObject.userData.id) {
-          highlightSelectedNode(selectedObject.userData.id, selectedNode);
-          setSelectedNode(selectedObject);
-          document.getElementById('nodeId').value = selectedObject.userData.id;
-          document.getElementById('nodeLabel').value = selectedObject.userData.name;
-          document.getElementById('nodeNeighbors').value = selectedObject.userData.neighbors;
-          document.getElementById('nodeX').value = selectedObject.position.x;
-          document.getElementById('nodeY').value = selectedObject.position.y;
-          document.getElementById('nodeZ').value = selectedObject.position.z;
-          highlightSelectedNode(selectedNode.id, selectedNode)
+    if (intersects.length > 0) {
+      const selectedObject = intersects[0].object;
+      console.log(selectedObject)
+      if (selectedObject.type === 'Mesh') {
+        const selectedNodeGroup = selectedObject;
+        if (selectedNodeGroup.userData && selectedNodeGroup.userData.nodeId) {
+          setSelectedNode(selectedNodeGroup);
+          console.log(selectedNodeGroup);
         }
-      } else {
-        if (selectedNode) {
-          selectedNode.material.color.set(0x00ff00);
-          transformControlsRef.current.detach();
-          setSelectedNode(null);
-        }
-        controlsRef.current.enabled = true;
+        console.log(selectedNodeGroup);
       }
+      console.log(selectedObject);
+    } else {
+      setSelectedNode(null);
     }
-  };
-
-  const updateLines = (nodeMesh) => {
-    const nodeId = nodeMesh.userData.id;
-    const nodePosition = nodeMesh.position.clone();
-    const neighbors = nodeMesh.userData.neighbors.split(',').map(Number);
-
-    linesRef.current.forEach(line => {
-      const points = line.geometry.attributes.position.array;
-      if (
-        (points[0] === nodePosition.x && points[1] === nodePosition.y && points[2] === nodePosition.z) ||
-        (points[3] === nodePosition.x && points[4] === nodePosition.y && points[5] === nodePosition.z)
-      ) {
-        const otherNode = nodes.find(n => n.id === neighbors[0]);
-        if (otherNode) {
-          const otherPosition = new THREE.Vector3().fromArray(otherNode.translation.split(',').map(parseFloat));
-          line.geometry.setFromPoints([nodePosition, otherPosition]);
-        }
-      }
-    });
   };
 
   const validateToken = async (token) => {
@@ -465,25 +485,106 @@ const App = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleMoveNode = (axis) => {
-    if (selectedNode) {
-      const step = 0.1;
-      switch (axis) {
-        case 'x':
-          selectedNode.position.x += step;
-          break;
-        case 'y':
-          selectedNode.position.y += step;
-          break;
-        case 'z':
-          selectedNode.position.z += step;
-          break;
-        default:
-          break;
+  const loadFavorites = async () => {
+    try {
+      const response = await fetch(base_url + '/api/users/favorites', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Network response was not ok ' + response.statusText);
       }
-      updateLines(selectedNode);
+      const favorites = await response.json();
+      setFavorites(favorites);
+    } catch (error) {
+      console.error('Failed to load favorites:', error);
     }
   };
+
+  const updateFavorites = async (favorites) => {
+    try {
+      const response = await fetch(base_url + '/api/users/favorites', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(favorites)
+      });
+      if (!response.ok) {
+        throw new Error('Network response was not ok ' + response.statusText);
+      }
+      setFavorites(favorites);
+    } catch (error) {
+      console.error('Failed to update favorites:', error);
+    }
+  };
+
+  const handleRenameBuilding = async (buildingId, newName) => {
+    try {
+      const response = await fetch(base_url + `/api/buildings/${buildingId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: newName })
+      });
+      if (!response.ok) {
+        throw new Error('Network response was not ok ' + response.statusText);
+      }
+      loadBuildings();
+    } catch (error) {
+      console.error('Failed to rename building:', error);
+    }
+  };
+
+  const handleDeleteBuilding = async (buildingId) => {
+    try {
+      const response = await fetch(base_url + `/api/buildings/${buildingId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Network response was not ok ' + response.statusText);
+      }
+      loadBuildings();
+    } catch (error) {
+      console.error('Failed to delete building:', error);
+    }
+  };
+
+  const handleCreateBuilding = async (buildingName) => {
+    try {
+      const response = await fetch(base_url + '/api/buildings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name: buildingName, address: '' })
+      });
+      if (!response.ok) {
+        throw new Error('Network response was not ok ' + response.statusText);
+      }
+      loadBuildings();
+    } catch (error) {
+      console.error('Failed to create building:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (sceneRef.current && cameraRef.current && rendererRef.current) {
+      console.log('Creating GridHelper');
+      gridHelperRef.current = new THREE.GridHelper(100, 100);
+      gridHelperRef.current.position.set(0, -2, 0);
+      sceneRef.current.add(gridHelperRef.current);
+      console.log('GridHelper added to scene');
+    }
+  }, [sceneRef, cameraRef, rendererRef]);
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
@@ -493,6 +594,9 @@ const App = () => {
         setSelectedBuilding={setSelectedBuilding}
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
+        onRename={handleRenameBuilding}
+        onDelete={handleDeleteBuilding}
+        onCreate={handleCreateBuilding}
       />
       <BuildingName buildingName={buildings.find(building => building.id === selectedBuilding)?.name} />
       <div id="controls" className={isSidebarOpen ? 'sidebar-open' : ''} style={{ position: 'absolute', top: '10px', left: '75px', zIndex: 1000 }}>
@@ -505,9 +609,8 @@ const App = () => {
             updateNode={updateNode}
             deleteNode={deleteNode}
             nodes={nodes}
-            highlightSelectedNode={highlightSelectedNode}
           />
-          <ModelManager scene={sceneRef.current} />
+          <ModelManager scene={sceneRef.current} onModelSelect={setSelectedModel} />
           <CreateNodeControls createNode={createNode} />
           <NodeInfo selectedNode={selectedNode} />
         </div>
@@ -523,10 +626,8 @@ const App = () => {
         <button
           style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 1000 }}
           onClick={() => {
-            console.log(showLoginModal)
-            setShowLoginModal(!showLoginModal)
-          }
-          }
+            setShowLoginModal(!showLoginModal);
+          }}
         >
           Войти
         </button>
@@ -538,44 +639,30 @@ const App = () => {
           sceneRef.current = scene;
           cameraRef.current = camera;
           rendererRef.current = gl;
-          controlsRef.current = new OrbitControls(camera, gl.domElement);
-          transformControlsRef.current = new TransformControls(camera, gl.domElement);
-          scene.add(transformControlsRef.current);
-          gridHelperRef.current = new THREE.GridHelper(100, 100);
-          gridHelperRef.current.position.set(0, -2, 0);
-          scene.add(gridHelperRef.current);
+          console.log('Canvas created:', { gl, scene, camera });
         }}
       >
-        <ambientLight />
-        <pointLight position={[10, 10, 10]} />
-        {nodes.map((node, index) => {
-          const position = node.translation.split(',').map(parseFloat);
-          return (
-            <group key={node.id}>
-              <Box position={position} args={[0.3, 0.3, 0.3]}>
-                <meshBasicMaterial color={0x00ff00} />
-              </Box>
-              <Box position={position} args={[0.5, 0.5, 0.5]}>
-                <meshBasicMaterial color={0x00ff00} visible={false} />
-              </Box>
-              {selectedNode && selectedNode.userData.id === node.id && (
-                <AxisArrows position={position} onMove={handleMoveNode} />
-              )}
-            </group>
-          );
-        })}
-        {linesRef.current.map((line, index) => (
-          <Line key={index} points={line.geometry.attributes.position.array.reduce((acc, val) => acc.concat(val), [])} color={0x0000ff} />
-        ))}
-        {models.map((model, index) => {
-          const { url, position } = model;
-          return (
-            <mesh key={index} position={position}>
-              <boxGeometry args={[1, 1, 1]} />
-              <meshBasicMaterial color={0x0000ff} />
-            </mesh>
-          );
-        })}
+        <SceneComponent
+          nodes={nodes}
+          nodeGroups={nodeGroups}
+          linesRef={linesRef}
+          models={models}
+          selectedNode={selectedNode}
+          rendererRef={rendererRef}
+          sceneRef={sceneRef}
+          cameraRef={cameraRef}
+          gridHelperRef={gridHelperRef}
+          onNodeMove={(nodeId, newPosition) => {
+            const updatedNodes = nodes.map(node => {
+              if (node.id === nodeId) {
+                return { ...node, translation: newPosition.join(',') };
+              }
+              return node;
+            });
+            setNodes(updatedNodes);
+          }}
+        />
+        <Controls selectedModel={selectedModel} />
       </Canvas>
       <LoginModal
         show={showLoginModal}
@@ -586,5 +673,108 @@ const App = () => {
     </div>
   );
 }
+
+const SceneComponent = ({ nodes, nodeGroups, linesRef, models, selectedNode, rendererRef, sceneRef, cameraRef, gridHelperRef, onNodeMove }) => {
+  const { scene, camera, gl } = useThree();
+  const [hovered, setHovered] = useState(false);
+  const [objectsAdded, setObjectsAdded] = useState(false);
+
+  useEffect(() => {
+    console.log('Creating GridHelper');
+    gridHelperRef.current = new THREE.GridHelper(100, 100);
+    gridHelperRef.current.position.set(0, -2, 0);
+    scene.add(gridHelperRef.current);
+    console.log('GridHelper added to scene');
+  }, [scene, camera, gl]);
+
+  useEffect(() => {
+    if (nodes.length > 0) {
+      linesRef.current.forEach(line => {
+        scene.remove(line);
+      });
+      linesRef.current = [];
+
+      nodes.forEach((node, index) => {
+        const position = new THREE.Vector3(...node.translation.split(',').map(parseFloat));
+        const neighbors = node.neighbors.split(',').map(Number);
+        neighbors.forEach(neighborId => {
+          const neighborNode = nodes.find(n => n.id === neighborId);
+          if (neighborNode) {
+            const neighborPosition = new THREE.Vector3(...neighborNode.translation.split(',').map(parseFloat));
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints([position, neighborPosition]);
+            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            scene.add(line);
+            linesRef.current.push(line);
+          }
+        });
+      });
+    }
+  }, [nodes, scene]);
+
+  useFrame(() => {
+    if (rendererRef.current && sceneRef.current && cameraRef.current) {
+      rendererRef.current.render(sceneRef.current, cameraRef.current);
+    }
+
+    // Update lines if a node is selected and being transformed
+    if (selectedNode) {
+      const selectedNodeId = selectedNode.userData.nodeId;
+      const nodeNeighbors = selectedNode.userData.neighbors;
+      if (nodeNeighbors) {
+        const neighbors = nodeNeighbors.split(',').map(Number);
+        neighbors.forEach(neighborId => {
+          const neighborNode = nodes.find(n => n.id === neighborId);
+          if (neighborNode) {
+            const neighborPosition = new THREE.Vector3(...neighborNode.translation.split(',').map(parseFloat));
+            const line = linesRef.current.find(line => {
+              const points = line.geometry.attributes.position.array;
+              return points[0] === selectedNode.position.x && points[1] === selectedNode.position.y && points[2] === selectedNode.position.z;
+            });
+            if (line) {
+              line.geometry.setFromPoints([selectedNode.position, neighborPosition]);
+              line.geometry.attributes.position.needsUpdate = true;
+            }
+          }
+        });
+      }
+    }
+  });
+
+  return (
+    <>
+      {nodeGroups.current.map((group, index) => {
+        const node = nodes[index];
+        const position = node.translation.split(',').map(parseFloat);
+        return (
+          <group key={node.id}>
+            <Node
+              name={node.id}
+              position={position}
+              color={selectedNode && selectedNode.userData.nodeId === node.id ? 0xff0000 : 0x00ff00}
+              onClick={(e) => (e.stopPropagation(), (state.current = node.id))}
+              onContextMenu={(e) => state.current === node.id && (e.stopPropagation(), (state.mode = (state.mode + 1) % modes.length))}
+              onPointerOver={() => setHovered(true)}
+              onPointerOut={() => setHovered(false)}
+              setHovered={setHovered}
+            />
+          </group>
+        );
+      })}
+      {linesRef.current.map((line, index) => (
+        <line key={index} geometry={line.geometry} material={line.material} />
+      ))}
+      {models.map((model, index) => {
+        const { url, position } = model;
+        return (
+          <mesh key={index} position={position}>
+            <boxGeometry args={[1, 1, 1]} />
+            <meshBasicMaterial color={0x0000ff} />
+          </mesh>
+        );
+      })}
+    </>
+  );
+};
 
 export default App;

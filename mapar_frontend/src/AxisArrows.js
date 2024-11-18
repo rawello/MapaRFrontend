@@ -1,49 +1,115 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
-import { useFrame } from '@react-three/fiber';
+import { ArrowHelper } from 'three';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
-const AxisArrows = ({ position, onMove }) => {
+const AxisArrows = ({ position, onMove, scene, selectedNode, setSelectedNode, nodes, setNodes, transformControlsRef, controlsRef }) => {
     const arrowXRef = useRef();
     const arrowYRef = useRef();
     const arrowZRef = useRef();
+    const isDraggingRef = useRef(false);
+    const dragStartPositionRef = useRef(new THREE.Vector2());
+    const dragAxisRef = useRef(null);
 
     useEffect(() => {
-        const arrowXGeometry = new THREE.ConeGeometry(0.1, 0.5, 32);
-        const arrowXMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-        const arrowX = new THREE.Mesh(arrowXGeometry, arrowXMaterial);
-        arrowX.position.set(0.5, 0, 0);
-        arrowX.rotation.z = Math.PI / 2;
-        arrowXRef.current.add(arrowX);
+        const arrowXCurrent = arrowXRef.current;
+        const arrowYCurrent = arrowYRef.current;
+        const arrowZCurrent = arrowZRef.current;
 
-        const arrowYGeometry = new THREE.ConeGeometry(0.1, 0.5, 32);
-        const arrowYMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-        const arrowY = new THREE.Mesh(arrowYGeometry, arrowYMaterial);
-        arrowY.position.set(0, 0.5, 0);
-        arrowYRef.current.add(arrowY);
+        const arrowX = new ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 0, 0), 1, 0xff0000);
+        arrowXCurrent.add(arrowX);
 
-        const arrowZGeometry = new THREE.ConeGeometry(0.1, 0.5, 32);
-        const arrowZMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-        const arrowZ = new THREE.Mesh(arrowZGeometry, arrowZMaterial);
-        arrowZ.position.set(0, 0, 0.5);
-        arrowZ.rotation.x = Math.PI / 2;
-        arrowZRef.current.add(arrowZ);
-    }, []);
+        const arrowY = new ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 0), 1, 0x00ff00);
+        arrowYCurrent.add(arrowY);
 
-    useFrame(() => {
-        if (arrowXRef.current) arrowXRef.current.position.copy(position);
-        if (arrowYRef.current) arrowYRef.current.position.copy(position);
-        if (arrowZRef.current) arrowZRef.current.position.copy(position);
-    });
+        const arrowZ = new ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 0), 1, 0x0000ff);
+        arrowZCurrent.add(arrowZ);
 
-    const handleClick = (axis) => {
-        onMove(axis);
+        if (selectedNode) {
+            selectedNode.add(arrowXCurrent);
+            selectedNode.add(arrowYCurrent);
+            selectedNode.add(arrowZCurrent);
+        }
+
+        return () => {
+            if (selectedNode) {
+                selectedNode.remove(arrowXCurrent);
+                selectedNode.remove(arrowYCurrent);
+                selectedNode.remove(arrowZCurrent);
+            }
+        };
+    }, [scene, selectedNode]);
+
+    const handlePointerDown = (event, axis) => {
+        event.stopPropagation();
+        isDraggingRef.current = true;
+        dragAxisRef.current = axis;
+        dragStartPositionRef.current.set(event.clientX, event.clientY);
     };
 
+    const handlePointerMove = (event) => {
+        if (!isDraggingRef.current) return;
+
+        const dragDelta = new THREE.Vector2(event.clientX, event.clientY).sub(dragStartPositionRef.current);
+        const step = dragDelta.length() * 0.0005;
+
+        if (dragAxisRef.current === 'x') {
+            onMove('x', step);
+        } else if (dragAxisRef.current === 'y') {
+            onMove('y', step * (dragDelta.y > 0 ? 1 : -1));
+        } else if (dragAxisRef.current === 'z') {
+            onMove('z', step * (dragDelta.y > 0 ? 1 : -1));
+        }
+    };
+
+    const handlePointerUp = () => {
+        isDraggingRef.current = false;
+        dragAxisRef.current = null;
+    };
+
+    useEffect(() => {
+        window.addEventListener('pointermove', handlePointerMove);
+        window.addEventListener('pointerup', handlePointerUp);
+
+        return () => {
+            window.removeEventListener('pointermove', handlePointerMove);
+            window.removeEventListener('pointerup', handlePointerUp);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (selectedNode) {
+            transformControlsRef.current.attach(selectedNode);
+            scene.add(transformControlsRef.current);
+
+            transformControlsRef.current.addEventListener('dragging-changed', (event) => {
+                controlsRef.current.enabled = !event.value;
+            });
+
+            transformControlsRef.current.addEventListener('change', () => {
+                if (selectedNode) {
+                    const updatedNodes = nodes.map(node => {
+                        if (node.id === selectedNode.userData.nodeId) {
+                            return {
+                                ...node,
+                                translation: `${selectedNode.position.x},${selectedNode.position.y},${selectedNode.position.z}`
+                            };
+                        }
+                        return node;
+                    });
+                    setNodes(updatedNodes);
+                }
+            });
+        } else {
+            transformControlsRef.current.detach();
+        }
+    }, [selectedNode, nodes, setNodes, scene, transformControlsRef, controlsRef]);
+
     return (
-        <group>
-            <mesh ref={arrowXRef} onClick={() => handleClick('x')} />
-            <mesh ref={arrowYRef} onClick={() => handleClick('y')} />
-            <mesh ref={arrowZRef} onClick={() => handleClick('z')} />
+        <group position={position}>
+            <group ref={arrowXRef} onPointerDown={(e) => handlePointerDown(e, 'x')} />
+            <group ref={arrowYRef} onPointerDown={(e) => handlePointerDown(e, 'y')} />
+            <group ref={arrowZRef} onPointerDown={(e) => handlePointerDown(e, 'z')} />
         </group>
     );
 };

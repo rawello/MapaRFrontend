@@ -6,6 +6,8 @@
     --hover-color: #ecf0f1;
     --shadow-color: rgba(0, 0, 0, 0.1);
     --border-radius: 10px;
+    --icon-button-color: #a0c4ff;
+    --create-building-bg: #e0e0e0;
 }
 
 .sidebar {
@@ -24,7 +26,8 @@
 }
 
 .sidebar.open {
-    width: 200px;
+    width: 270px;
+    /* Увеличиваем ширину открытого сайдбара */
     box-shadow: 5px 0 15px var(--shadow-color);
 }
 
@@ -41,6 +44,52 @@
 
 .sidebarContent {
     padding: 15px;
+}
+
+.createBuilding {
+    margin-bottom: 20px;
+    background-color: transparent;
+    border-radius: var(--border-radius);
+    padding: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.createBuilding.active {
+    background-color: var(--create-building-bg);
+    box-shadow: 0 2px 5px var(--shadow-color);
+}
+
+.createBuildingForm {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.createBuildingForm.open {
+    max-height: 120px;
+}
+
+.createBuildingForm input {
+    width: 90%;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--shadow-color);
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+.createBuildingForm input:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+.buildingsList {
+    transition: margin-top 0.3s ease;
+}
+
+.buildingsList.creating {
+    margin-top: 60px;
 }
 
 .building {
@@ -78,4 +127,79 @@
 
 .sidebar.open .building span {
     opacity: 1;
+}
+
+.iconButton {
+    background-color: var(--icon-button-color);
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    margin-left: 10px;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.3s ease;
+}
+
+.iconButton:hover {
+    background-color: var(--primary-color);
+}
+
+.iconButton img {
+    width: 20px;
+    height: 20px;
+}
+
+.modalButtons {
+    margin-top: 20px;
+}
+
+.modalButtons button {
+    margin: 0 10px;
+}
+
+.editMenu {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    margin-top: 10px;
+    background-color: var(--background-color);
+    border-radius: var(--border-radius);
+    padding: 10px;
+    box-shadow: 0 2px 5px var(--shadow-color);
+}
+
+.editMenu.open {
+    max-height: 200px;
+    opacity: 1;
+}
+
+.editMenu input {
+    width: 100%;
+    padding: 5px;
+    margin-bottom: 10px;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--shadow-color);
+}
+
+.editMenu .modalButtons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.editMenu .modalButtons .row {
+    display: flex;
+    justify-content: space-between;
+}
+
+.editMenu .modalButtons .row button {
+    flex: 1;
+    margin: 0 5px;
+}
+
+.editMenu .modalButtons .row:last-child button {
+    width: 100%;
 }
