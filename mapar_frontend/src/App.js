@@ -16,7 +16,8 @@ import './App.css';
 const modes = ["translate", "rotate", "scale"];
 const state = proxy({ current: null, mode: 0 });
 
-const base_url = "http://localhost:8080";
+//const base_url = "http://localhost:8080";
+const base_url = "http://192.168.58.14:8080";
 
 function Node({ name, position, color, onClick, onContextMenu, onPointerOver, onPointerOut, setHovered }) {
   // Ties this component to the state model
@@ -46,8 +47,11 @@ function Node({ name, position, color, onClick, onContextMenu, onPointerOver, on
       name={name}
       position={position}
       dispose={null}
+      userData={{ nodeId: name }} // Добавляем userData в группу
     >
-      <mesh>
+      <mesh
+        userData={{ nodeId: name }} // Добавляем userData в меш
+      >
         <boxGeometry args={[0.3, 0.3, 0.3]} />
         <meshBasicMaterial color={snap.current === name ? "#ff6080" : color} />
       </mesh>
@@ -88,7 +92,6 @@ function App() {
   const mouseRef = useRef(new THREE.Vector2());
   const gridHelperRef = useRef();
   const linesRef = useRef([]);
-  const hitboxesRef = useRef([]);
   const nodeGroups = useRef([]);
 
   useEffect(() => {
@@ -223,7 +226,6 @@ function App() {
         }
       });
       linesRef.current = [];
-      hitboxesRef.current = [];
       nodeGroups.current = [];
     }
   };
@@ -245,18 +247,17 @@ function App() {
       group.position.copy(position);
       group.userData.nodeId = node.id;
       group.userData.name = node.name;
-      group.userData.neighbors = node.neighbors; // Добавлено
+      group.userData.neighbors = node.neighbors;
       group.userData.translation = node.translation;
+
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3, 0.3, 0.3),
+        new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+      );
+      mesh.userData.nodeId = node.id;
+      group.add(mesh);
       sceneRef.current.add(group);
       nodeGroups.current[index] = group;
-
-      const hitboxGeom = new THREE.SphereGeometry(0.5, 32, 32);
-      const hitboxMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, visible: false });
-      const hitbox = new THREE.Mesh(hitboxGeom, hitboxMaterial);
-      hitbox.position.copy(position);
-      hitbox.userData.nodeId = node.id;
-      sceneRef.current.add(hitbox);
-      hitboxesRef.current.push(hitbox);
 
       const neighbors = node.neighbors.split(',').map(Number);
       neighbors.forEach(neighborId => {
@@ -371,13 +372,12 @@ function App() {
     mouseRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
     raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
-    const intersects = raycasterRef.current.intersectObjects(hitboxesRef.current, true);
+    const intersects = raycasterRef.current.intersectObjects(nodeGroups.current, true);
 
     if (intersects.length > 0) {
       const selectedObject = intersects[0].object;
-      console.log(selectedObject)
-      if (selectedObject.type === 'Mesh') {
-        const selectedNodeGroup = selectedObject;
+      if (selectedObject.type === 'Mesh' && selectedObject.userData.nodeId) {
+        const selectedNodeGroup = selectedObject.parent;
         if (selectedNodeGroup.userData && selectedNodeGroup.userData.nodeId) {
           setSelectedNode(selectedNodeGroup);
           console.log(selectedNodeGroup);

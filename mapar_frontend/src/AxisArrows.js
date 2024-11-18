@@ -31,6 +31,7 @@ const AxisArrows = ({ position, onMove, scene, selectedNode, setSelectedNode, no
             selectedNode.add(arrowZCurrent);
         }
 
+        
         return () => {
             if (selectedNode) {
                 selectedNode.remove(arrowXCurrent);
