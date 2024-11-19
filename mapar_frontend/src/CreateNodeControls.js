@@ -1,9 +1,8 @@
 import React from 'react';
-import './CreateNodeControls.css';
 
 const CreateNodeControls = ({ createNode }) => {
     return (
-        <div className="controls">
+        <div className="create-node-controls">
             <h3>Create Node</h3>
             <div>
                 <label htmlFor="newNodeLabel">Name:</label>
@@ -25,7 +24,7 @@ const CreateNodeControls = ({ createNode }) => {
                 <label htmlFor="newNodeZ">Z:</label>
                 <input type="number" id="newNodeZ" step="0.1" />
             </div>
-            <button id="createNode" onClick={createNode}>Create Node</button>
+            <button onClick={createNode}>Create Node</button>
         </div>
     );
 };

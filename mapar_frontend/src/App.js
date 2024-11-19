@@ -1,4 +1,4 @@
-import React, { Suspense, useState, useEffect, useRef } from "react";
+import React, { Suspense, useState, useEffect, useRef, useMemo } from "react";
 import { Canvas, useThree, useFrame } from "@react-three/fiber";
 import { OrbitControls, TransformControls, useCursor } from "@react-three/drei";
 import { proxy, useSnapshot } from "valtio";
@@ -15,25 +15,17 @@ import './App.css';
 // Reactive state model, using Valtio ...
 const modes = ["translate", "rotate", "scale"];
 const state = proxy({ current: null, mode: 0 });
-
-//const base_url = "http://localhost:8080";
-const base_url = "http://192.168.58.14:8080";
+const base_url = "http://26.239.171.49:8080";
 
 function Node({ name, position, color, onClick, onContextMenu, onPointerOver, onPointerOut, setHovered }) {
-  // Ties this component to the state model
   const snap = useSnapshot(state);
-  // Feed hover state into useCursor, which sets document.body.style.cursor to pointer|auto
   const [hovered, setHoveredState] = useState(false);
   useCursor(hovered);
 
   return (
     <group
-      // Click sets the group as the new target
       onClick={onClick}
-      // If a click happened but this group wasn't hit we null out the target,
-      // This works because missed pointers fire before the actual hits
       onPointerMissed={(e) => e.type === "click" && (state.current = null)}
-      // Right click cycles through the transform modes
       onContextMenu={onContextMenu}
       onPointerOver={(e) => {
         e.stopPropagation();
@@ -47,20 +39,17 @@ function Node({ name, position, color, onClick, onContextMenu, onPointerOver, on
       name={name}
       position={position}
       dispose={null}
-      userData={{ nodeId: name }} // Добавляем userData в группу
+      userData={{ nodeId: name }}
     >
-      <mesh
-        userData={{ nodeId: name }} // Добавляем userData в меш
-      >
+      <mesh userData={{ nodeId: name }}>
         <boxGeometry args={[0.3, 0.3, 0.3]} />
-        <meshBasicMaterial color={snap.current === name ? "#ff6080" : color} />
+        <meshBasicMaterial color={color} />
       </mesh>
     </group>
   );
 }
 
 function Controls({ selectedModel }) {
-  // Get notified on changes to state
   const snap = useSnapshot(state);
   const scene = useThree((state) => state.scene);
   return (
@@ -609,6 +598,8 @@ function App() {
             updateNode={updateNode}
             deleteNode={deleteNode}
             nodes={nodes}
+            nodeGroups={nodeGroups.current}
+            setSelectedNode={setSelectedNode}
           />
           <ModelManager scene={sceneRef.current} onModelSelect={setSelectedModel} />
           <CreateNodeControls createNode={createNode} />
@@ -739,6 +730,17 @@ const SceneComponent = ({ nodes, nodeGroups, linesRef, models, selectedNode, ren
         });
       }
     }
+
+    // Update nodes positions in the original array
+    nodeGroups.current.forEach((group, index) => {
+      const node = nodes[index];
+      if (node) {
+        const position = new THREE.Vector3(...node.translation.split(',').map(parseFloat));
+        if (!position.equals(group.position)) {
+          onNodeMove(node.id, [group.position.x, group.position.y, group.position.z]);
+        }
+      }
+    });
   });
 
   return (

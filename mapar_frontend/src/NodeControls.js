@@ -52,28 +52,32 @@ const NodeControls = ({ selectedNode, buildings, selectedBuilding, setSelectedBu
                     ))}
                 </select>
             </div>
-            <div>
-                <label htmlFor="nodeLabel">Name:</label>
-                <input type="text" id="nodeLabel" defaultValue={selectedNode ? selectedNode.userData.name : ''} />
+            <div className="node-details">
+                <div>
+                    <label htmlFor="nodeLabel">Name:</label>
+                    <input type="text" id="nodeLabel" defaultValue={selectedNode ? selectedNode.userData.name : ''} />
+                </div>
+                <div>
+                    <label htmlFor="nodeNeighbors">Neighbors:</label>
+                    <input type="text" id="nodeNeighbors" defaultValue={selectedNode ? selectedNode.userData.neighbors : ''} />
+                </div>
+                <div>
+                    <label htmlFor="nodeX">X:</label>
+                    <input type="number" id="nodeX" step="0.1" defaultValue={selectedNode ? selectedNode.position.x : ''} />
+                </div>
+                <div>
+                    <label htmlFor="nodeY">Y:</label>
+                    <input type="number" id="nodeY" step="0.1" defaultValue={selectedNode ? selectedNode.position.y : ''} />
+                </div>
+                <div>
+                    <label htmlFor="nodeZ">Z:</label>
+                    <input type="number" id="nodeZ" step="0.1" defaultValue={selectedNode ? selectedNode.position.z : ''} />
+                </div>
             </div>
-            <div>
-                <label htmlFor="nodeNeighbors">Neighbors:</label>
-                <input type="text" id="nodeNeighbors" defaultValue={selectedNode ? selectedNode.userData.neighbors : ''} />
+            <div className="node-actions">
+                <button id="updateNode" onClick={updateNode}>Update Node</button>
+                <button id="deleteNode" onClick={deleteNode}>Delete Node</button>
             </div>
-            <div>
-                <label htmlFor="nodeX">X:</label>
-                <input type="number" id="nodeX" step="0.1" defaultValue={selectedNode ? selectedNode.position.x : ''} />
-            </div>
-            <div>
-                <label htmlFor="nodeY">Y:</label>
-                <input type="number" id="nodeY" step="0.1" defaultValue={selectedNode ? selectedNode.position.y : ''} />
-            </div>
-            <div>
-                <label htmlFor="nodeZ">Z:</label>
-                <input type="number" id="nodeZ" step="0.1" defaultValue={selectedNode ? selectedNode.position.z : ''} />
-            </div>
-            <button id="updateNode" onClick={updateNode}>Update Node</button>
-            <button id="deleteNode" onClick={deleteNode}>Delete Node</button>
         </div>
     );
 };
