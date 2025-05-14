@@ -1,0 +1,244 @@
+/* Основной контейнер для плавающих панелей */
+.floating-panel {
+    position: absolute;
+    background: var(--panel-background);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-medium);
+    color: var(--text-color);
+    min-width: 280px;
+    max-width: 400px;
+    z-index: 1000;
+    transform: translateY(10px);
+    opacity: 0;
+    animation: floatIn var(--animation-normal) cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes floatIn {
+    from {
+        transform: translateY(10px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Заголовок панели */
+.floating-panel-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+}
+
+.floating-panel-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+/* Содержимое панели */
+.floating-panel-content {
+    padding: 16px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
+.floating-panel-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.floating-panel-content::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.floating-panel-content::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: var(--border-radius-small);
+}
+
+.floating-panel-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+/* Кнопки действий */
+.floating-panel-actions {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.floating-panel-button {
+    padding: 8px 16px;
+    border-radius: var(--border-radius-small);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all var(--animation-fast) ease;
+}
+
+.floating-panel-button.primary {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+}
+
+.floating-panel-button.primary:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-small);
+}
+
+.floating-panel-button.primary:active {
+    transform: translateY(0);
+    background: var(--pressed-color);
+}
+
+.floating-panel-button.secondary {
+    background: transparent;
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.floating-panel-button.secondary:hover {
+    background: var(--hover-color);
+    border-color: var(--text-secondary);
+}
+
+.floating-panel-button.secondary:active {
+    background: var(--pressed-color);
+}
+
+/* Поля ввода */
+.floating-panel-input {
+    width: 100%;
+    padding: 8px 12px;
+    margin-bottom: 12px;
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--border-color);
+    font-size: 14px;
+    color: var(--text-color);
+    background-color: white;
+    transition: all var(--animation-fast) ease;
+}
+
+.floating-panel-input:hover {
+    border-color: var(--text-secondary);
+}
+
+.floating-panel-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
+    outline: none;
+}
+
+/* Чекбоксы */
+.floating-panel-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.floating-panel-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius-small);
+    appearance: none;
+    outline: none;
+    cursor: pointer;
+    position: relative;
+    transition: all var(--animation-fast) ease;
+}
+
+.floating-panel-checkbox input[type="checkbox"]:checked {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.floating-panel-checkbox input[type="checkbox"]:checked::after {
+    content: "✓";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 12px;
+}
+
+.floating-panel-checkbox label {
+    font-size: 14px;
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+/* Позиционирование панелей */
+.floating-panel.top-left {
+    top: 20px;
+    left: 20px;
+}
+
+.floating-panel.top-right {
+    top: 20px;
+    right: 20px;
+}
+
+.floating-panel.bottom-left {
+    bottom: 20px;
+    left: 20px;
+}
+
+.floating-panel.bottom-right {
+    bottom: 20px;
+    right: 20px;
+}
+
+/* Анимация для перемещения панелей */
+.floating-panel.dragging {
+    transition: none;
+    cursor: grabbing;
+    opacity: 0.9;
+}
+
+/* Стили для заголовка при перетаскивании */
+.floating-panel-header.draggable {
+    cursor: grab;
+}
+
+.floating-panel-header.dragging {
+    cursor: grabbing;
+}
+
+/* Разделитель для групп элементов */
+.floating-panel-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 12px 0;
+}
+
+/* Группа элементов */
+.floating-panel-group {
+    margin-bottom: 16px;
+}
+
+.floating-panel-group:last-child {
+    margin-bottom: 0;
+}
+
+.floating-panel-group-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}

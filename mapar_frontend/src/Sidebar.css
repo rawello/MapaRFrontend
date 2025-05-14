@@ -1,57 +1,208 @@
+/* Fluent UI переменные и стили */
 :root {
-    --primary-color: #3498db;
-    --secondary-color: #2ecc71;
-    --background-color: #f5f5f5;
-    --text-color: #333;
-    --hover-color: #ecf0f1;
-    --shadow-color: rgba(0, 0, 0, 0.1);
-    --border-radius: 10px;
-    --icon-button-color: #a0c4ff;
-    --create-building-bg: #e0e0e0;
+    /* Цветовая палитра в стиле Fluent */
+    --primary-color: rgb(0, 120, 212);
+    --primary-hover: rgb(0, 102, 180);
+    --secondary-color: rgb(46, 204, 113);
+    --background-color: rgba(255, 255, 255, 0.95);
+    --panel-background: rgba(251, 251, 251, 0.95);
+    --text-color: rgb(50, 49, 48);
+    --text-secondary: rgb(96, 94, 92);
+    --hover-color: rgba(0, 120, 212, 0.08);
+    --pressed-color: rgba(0, 120, 212, 0.16);
+    --shadow-color: rgba(0, 0, 0, 0.08);
+    --border-color: rgba(0, 0, 0, 0.1);
+    
+    /* Обновленные размеры сайдбара */
+    --sidebar-collapsed: 72px;
+    --sidebar-expanded: 380px;
+    --header-height: 56px;
+    
+    /* Улучшенные стили для инпутов */
+    --input-height: 44px;
+    --input-padding: 16px;
+    --input-background: rgba(255, 255, 255, 0.9);
+    --input-border: var(--border-color);
+    --input-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+    --input-focus-shadow: 0 0 0 3px rgba(0, 120, 212, 0.15);
+    --input-hover-bg: rgba(255, 255, 255, 1);
+    --input-transition: all var(--animation-normal) cubic-bezier(0.4, 0, 0.2, 1);
+    
+    /* Остальные переменные */
+    --border-radius-small: 4px;
+    --border-radius: 6px;
+    --border-radius-large: 8px;
+    --animation-fast: 0.1s;
+    --animation-normal: 0.2s;
+    --animation-slow: 0.3s;
+    --shadow-small: 0 2px 4px rgba(0, 0, 0, 0.08);
+    --shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.12);
+    --shadow-large: 0 8px 16px rgba(0, 0, 0, 0.16);
 }
 
+/* Глобальный box-sizing для предсказуемых размеров */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+/* Основной контейнер сайдбара */
 .sidebar {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
-    width: 70px;
+    width: var(--sidebar-collapsed);
+    min-width: var(--sidebar-collapsed);
+    max-width: var(--sidebar-expanded);
     height: 100vh;
     background-color: var(--background-color);
     color: var(--text-color);
-    transition: width 0.3s ease, box-shadow 0.3s ease;
+    transition: width var(--animation-normal) cubic-bezier(0.4, 0, 0.2, 1),
+                box-shadow var(--animation-normal) ease;
     overflow: hidden;
-    z-index: 1000;
-    border-radius: var(--border-radius);
-    box-shadow: 2px 0 10px var(--shadow-color);
+    z-index: 1001;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-right: 1.5px solid var(--border-color);
+    box-shadow: var(--shadow-large);
 }
 
 .sidebar.open {
-    width: 270px;
-    /* Увеличиваем ширину открытого сайдбара */
-    box-shadow: 5px 0 15px var(--shadow-color);
+    width: var(--sidebar-expanded);
+    min-width: var(--sidebar-expanded);
+    box-shadow: var(--shadow-medium);
 }
 
+/* Кнопка открытия/закрытия теперь абсолютная внутри сайдбара и всегда сверху */
 .toggleButton {
-    padding: 15px;
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 2;
+    border-radius: 50%;
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.08);
+    background: var(--background-color);
+    border: 1px solid var(--border-color);
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    text-align: center;
-    transition: background-color 0.3s ease;
+    transition: background-color var(--animation-fast) ease, color var(--animation-fast) ease;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary-color);
+    letter-spacing: 1px;
+}
+
+/* В развернутом режиме кнопка остаётся на месте */
+.sidebar.open .toggleButton {
+    left: 12px;
 }
 
 .toggleButton:hover {
     background-color: var(--hover-color);
+    color: var(--primary-color);
 }
 
+.toggleButton:active {
+    background-color: var(--pressed-color);
+}
+
+/* Контент сайдбара */
 .sidebarContent {
-    padding: 15px;
+    padding: 8px;
+    padding-top: 60px;
+    height: calc(100vh - var(--header-height));
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
+.sidebarContent::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebarContent::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebarContent::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.sidebarContent::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+}
+
+/* Создание нового здания */
 .createBuilding {
-    margin-bottom: 20px;
+    margin: 8px;
     background-color: transparent;
-    border-radius: var(--border-radius);
-    padding: 10px;
-    transition: background-color 0.3s ease;
+    border-radius: var(--border-radius-small);
+    transition: all var(--animation-normal) cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.createBuilding button {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    justify-content: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all var(--animation-fast) cubic-bezier(0.4,0,0.2,1);
+}
+
+.sidebar:not(.open) .createBuilding button {
+    padding: 0;
+    background: none;
+    border: none;
+    min-width: 0;
+    width: 40px;
+    height: 40px;
+    margin: 0 auto;
+    border-radius: 50%;
+    box-shadow: none;
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar:not(.open) .createBuilding button span,
+.sidebar:not(.open) .createBuilding button .add-text {
+    display: none;
+}
+
+.sidebar.open .createBuilding button {
+    padding: 8px 16px;
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-small);
+    color: var(--text-color);
+    width: 100%;
+    margin: 0;
+    box-shadow: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.createBuilding button:hover {
+    background-color: var(--hover-color);
+    border-color: var(--text-secondary);
+}
+
+.createBuilding button:active {
+    transform: scale(0.98);
+}
+
+.createBuilding.active {
+    background-color: var(--panel-background);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-small);
+    box-shadow: var(--shadow-small);
 }
 
 .createBuilding.active {
@@ -59,147 +210,419 @@
     box-shadow: 0 2px 5px var(--shadow-color);
 }
 
+/* Форма создания здания */
 .createBuildingForm {
     max-height: 0;
+    opacity: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease;
+    transition: var(--input-transition);
+    background-color: var(--panel-background);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--input-border);
+    border-radius: var(--border-radius);
+    margin: 8px 0;
+    transform: translateY(-8px);
 }
 
 .createBuildingForm.open {
-    max-height: 120px;
+    max-height: 320px;
+    opacity: 1;
+    padding: 20px;
+    transform: translateY(0);
+    box-shadow: var(--shadow-medium);
 }
 
 .createBuildingForm input {
-    width: 90%;
-    padding: 10px;
-    margin-top: 10px;
-    border-radius: var(--border-radius);
-    border: 1px solid var(--shadow-color);
+    width: 100%;
+    height: var(--input-height);
+    padding: var(--input-padding);
+    margin-bottom: 12px;
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--input-border);
     font-size: 14px;
-    transition: border-color 0.3s ease;
+    color: var(--text-color);
+    background-color: var(--input-background);
+    box-shadow: var(--input-shadow);
+    transition: var(--input-transition);
+}
+
+.createBuildingForm input:hover {
+    border-color: var(--text-secondary);
+    background-color: var(--input-hover-bg);
 }
 
 .createBuildingForm input:focus {
     border-color: var(--primary-color);
+    box-shadow: var(--input-focus-shadow);
     outline: none;
 }
 
-.buildingsList {
-    transition: margin-top 0.3s ease;
+.createBuildingForm input[type="text"] {
+    background: var(--input-background);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
-.buildingsList.creating {
-    margin-top: 60px;
+/* Улучшенные стили для списка зданий */
+.buildingsList {
+    padding: 8px;
+    transition: all var(--animation-normal) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .building {
     display: flex;
     align-items: center;
-    margin-bottom: 25px;
+    margin: 6px 0;
+    padding: 10px 16px;
     cursor: pointer;
-    transition: background-color 0.3s ease;
-    border-radius: var(--border-radius);
-    padding: 5px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.building img {
-    width: 35px;
-    height: 40px;
-    margin-right: 10px;
-    border-radius: var(--border-radius);
-}
-
-.building.selected {
-    background-color: var(--primary-color);
+    transition: var(--input-transition);
+    border-radius: var(--border-radius-small);
+    background-color: transparent;
+    border: 1px solid transparent;
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .building:hover {
     background-color: var(--hover-color);
+    transform: translateX(4px);
+}
+
+.building:active {
+    background-color: var(--pressed-color);
+    transform: translateX(2px);
+}
+
+.building.selected {
+    background-color: var(--hover-color);
+    border-color: var(--primary-color);
+    border-width: 2.5px;
+    box-shadow: 0 0 0 2px rgba(0,120,212,0.10);
+}
+
+.building img {
+    width: 28px;
+    height: 28px;
+    margin-left: -12px;
+    margin-right: 16px;
+    border-radius: var(--border-radius-small);
+    transition: var(--input-transition);
+}
+
+.sidebar:not(.open) .building span {
+    display: none;
+}
+
+.sidebar:not(.open) .building img {
+    margin-right: 0;
+}
+
+.sidebar.open .building span {
+    display: inline;
+    opacity: 1;
+    transform: none;
 }
 
 .building span {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-color);
     opacity: 0;
-    transition: opacity 1.5s ease;
+    transform: translateX(-12px);
+    transition: var(--input-transition);
 }
 
 .sidebar.open .building span {
     opacity: 1;
+    transform: translateX(0);
 }
 
+/* Кнопки действий */
 .iconButton {
-    background-color: var(--icon-button-color);
+    width: 40px;
+    height: 40px;
+    background: transparent;
     border: none;
-    border-radius: var(--border-radius);
+    border-radius: var(--border-radius-small);
     cursor: pointer;
-    margin-left: 10px;
-    padding: 5px;
+    margin-left: 12px;
+    padding: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.3s ease;
-}
-
-.iconButton:hover {
-    background-color: var(--primary-color);
+    transition: var(--input-transition);
+    color: var(--text-secondary);
 }
 
 .iconButton img {
     width: 20px;
     height: 20px;
+    transition: var(--input-transition);
 }
 
+.iconButton:hover {
+    background: var(--hover-color);
+    color: var(--primary-color);
+    transform: scale(1.1);
+}
+
+.iconButton:active {
+    background: var(--pressed-color);
+    transform: scale(1);
+}
+
+/* Кнопки в модальных окнах */
 .modalButtons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
     margin-top: 20px;
 }
 
 .modalButtons button {
-    margin: 0 10px;
+    height: var(--input-height);
+    padding: 0 var(--input-padding);
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: var(--border-radius-small);
+    transition: var(--input-transition);
 }
 
+.modalButtons button:first-child {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+}
+
+.modalButtons button:first-child:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-small);
+}
+
+.modalButtons button:last-child {
+    background: transparent;
+    border: 1px solid var(--input-border);
+    color: var(--text-color);
+}
+
+.modalButtons button:last-child:hover {
+    background: var(--hover-color);
+    border-color: var(--text-secondary);
+    transform: translateY(-2px);
+}
+
+/* Меню редактирования */
 .editMenu {
     max-height: 0;
     opacity: 0;
     overflow: hidden;
-    transition: max-height 0.3s ease, opacity 0.3s ease;
-    margin-top: 10px;
-    background-color: var(--background-color);
+    transition: var(--input-transition);
+    background-color: var(--panel-background);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--input-border);
     border-radius: var(--border-radius);
-    padding: 10px;
-    box-shadow: 0 2px 5px var(--shadow-color);
+    margin: 8px 12px;
+    transform: translateY(-8px);
 }
 
 .editMenu.open {
-    max-height: 200px;
+    max-height: 320px;
     opacity: 1;
+    padding: 20px;
+    transform: translateY(0);
+    box-shadow: var(--shadow-medium);
 }
 
 .editMenu input {
     width: 100%;
-    padding: 5px;
-    margin-bottom: 10px;
-    border-radius: var(--border-radius);
-    border: 1px solid var(--shadow-color);
+    height: var(--input-height);
+    padding: var(--input-padding);
+    margin-bottom: 12px;
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--input-border);
+    font-size: 14px;
+    color: var(--text-color);
+    background-color: var(--input-background);
+    box-shadow: var(--input-shadow);
+    transition: var(--input-transition);
+}
+
+.editMenu input:hover {
+    border-color: var(--text-secondary);
+    background-color: var(--input-hover-bg);
+}
+
+.editMenu input:focus {
+    border-color: var(--primary-color);
+    box-shadow: var(--input-focus-shadow);
+    outline: none;
+}
+
+.editMenu input[type="text"] {
+    background: var(--input-background);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 .editMenu .modalButtons {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 16px;
 }
 
-.editMenu .modalButtons .row {
-    display: flex;
-    justify-content: space-between;
-}
-
-.editMenu .modalButtons .row button {
-    flex: 1;
-    margin: 0 5px;
-}
-
-.editMenu .modalButtons .row:last-child button {
+.editMenu .modalButtons button {
+    padding: 8px;
     width: 100%;
+    font-size: 13px;
+}
+
+.editMenu .modalButtons button:first-child {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.editMenu .modalButtons button:first-child:hover {
+    background-color: var(--primary-hover);
+}
+
+.editMenu .modalButtons button:last-child {
+    background-color: transparent;
+    border: 1px solid var(--border-color);
+}
+
+.editMenu .modalButtons button:last-child:hover {
+    background-color: var(--hover-color);
+    border-color: var(--text-secondary);
+}
+
+/* Общие стили для полей ввода */
+.sidebar input[type="text"] {
+    width: 100%;
+    height: var(--input-height);
+    padding: 0 var(--input-padding);
+    background: var(--input-background);
+    border: 1px solid var(--input-border);
+    border-radius: var(--border-radius-small);
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text-color);
+    transition: var(--input-transition);
+    box-shadow: var(--input-shadow);
+    margin-bottom: 16px;
+}
+
+.sidebar input[type="text"]::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.8;
+}
+
+.sidebar input[type="text"]:hover {
+    border-color: var(--text-secondary);
+    background: var(--input-hover-bg);
+}
+
+.sidebar input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background: var(--input-hover-bg);
+    box-shadow: var(--input-focus-shadow);
+}
+
+/* Стили для полей ввода */
+input[type="text"] {
+    width: 100%;
+    height: var(--input-height);
+    padding: 0 var(--input-padding);
+    background: var(--input-background);
+    border: 1px solid var(--input-border);
+    border-radius: var(--border-radius-small);
+    font-size: 14px;
+    color: var(--text-color);
+    transition: var(--input-transition);
+    box-shadow: var(--input-shadow);
+    margin-bottom: 12px;
+}
+
+input[type="text"]::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.8;
+}
+
+input[type="text"]:hover {
+    border-color: var(--text-secondary);
+    background: var(--input-hover-bg);
+}
+
+input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background: var(--input-hover-bg);
+    box-shadow: var(--input-focus-shadow);
+}
+
+/* Контент с отступом, чтобы не перекрывался сайдбаром */
+body, #root, .app-main-content {
+    transition: margin-left var(--animation-normal) cubic-bezier(0.4,0,0.2,1);
+}
+
+.sidebar.open ~ .app-main-content {
+    margin-left: var(--sidebar-expanded);
+}
+
+.sidebar:not(.open) ~ .app-main-content {
+    margin-left: var(--sidebar-collapsed);
+}
+
+/* Сдвиг плавающих панелей (например, .scene-controls) */
+.scene-controls {
+    transition: right var(--animation-normal) cubic-bezier(0.4,0,0.2,1);
+    right: calc(var(--sidebar-collapsed) + 20px);
+}
+
+.sidebar.open ~ .scene-controls {
+    right: calc(var(--sidebar-expanded) + 20px);
+}
+
+/* Адаптивность */
+@media (max-width: 600px) {
+    .sidebar {
+        width: 90vw;
+        min-width: 0;
+        max-width: 100vw;
+        left: 0;
+    }
+    .sidebar.open {
+        width: 90vw;
+    }
+    .toggleButton {
+        left: 8px;
+        top: 8px;
+    }
+    .sidebarContent {
+        padding-top: 56px;
+    }
+    .scene-controls {
+        right: 8vw;
+    }
+    .sidebar.open ~ .scene-controls {
+        right: 8vw;
+    }
+}
+
+@media (max-width: 400px) {
+    .sidebar, .sidebar.open {
+        width: 100vw;
+        min-width: 0;
+        left: 0;
+    }
+    .toggleButton {
+        left: 0;
+        top: 4px;
+    }
 }

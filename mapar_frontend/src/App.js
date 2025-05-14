@@ -1,72 +1,17 @@
-import React, { Suspense, useState, useEffect, useRef } from "react";
-import { Canvas, useThree, useFrame } from "@react-three/fiber";
-import { OrbitControls, TransformControls, useCursor } from "@react-three/drei";
-import { proxy, useSnapshot } from "valtio";
-import * as THREE from 'three';
+import React, { useState, useEffect, useCallback } from "react";
+import { proxy } from "valtio";
+import PropTypes from 'prop-types';
 import NodeControls from './NodeControls';
-import CreateNodeControls from './CreateNodeControls';
-import NodeInfo from './NodeInfo';
 import Sidebar from './Sidebar';
 import LoginModal from './LoginModal';
 import BuildingName from './BuildingName';
-import ModelManager from './ModelManager';
+import Scene3D from './Scene3D';
+import SaveChangesButton from './SaveChangesButton';
 import './App.css';
 
-// Reactive state model, using Valtio ...
 const modes = ["translate", "rotate", "scale"];
 const state = proxy({ current: null, mode: 0 });
-
-const base_url = "http://localhost:8080";
-
-function Node({ name, position, color, onClick, onContextMenu, onPointerOver, onPointerOut, setHovered }) {
-  // Ties this component to the state model
-  const snap = useSnapshot(state);
-  // Feed hover state into useCursor, which sets document.body.style.cursor to pointer|auto
-  const [hovered, setHoveredState] = useState(false);
-  useCursor(hovered);
-
-  return (
-    <group
-      // Click sets the group as the new target
-      onClick={onClick}
-      // If a click happened but this group wasn't hit we null out the target,
-      // This works because missed pointers fire before the actual hits
-      onPointerMissed={(e) => e.type === "click" && (state.current = null)}
-      // Right click cycles through the transform modes
-      onContextMenu={onContextMenu}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        setHoveredState(true);
-        onPointerOver();
-      }}
-      onPointerOut={(e) => {
-        setHoveredState(false);
-        onPointerOut();
-      }}
-      name={name}
-      position={position}
-      dispose={null}
-    >
-      <mesh>
-        <boxGeometry args={[0.3, 0.3, 0.3]} />
-        <meshBasicMaterial color={snap.current === name ? "#ff6080" : color} />
-      </mesh>
-    </group>
-  );
-}
-
-function Controls({ selectedModel }) {
-  // Get notified on changes to state
-  const snap = useSnapshot(state);
-  const scene = useThree((state) => state.scene);
-  return (
-    <>
-      {snap.current && <TransformControls object={scene.getObjectByName(snap.current)} mode={modes[snap.mode]} />}
-      {selectedModel && <TransformControls object={selectedModel} mode={modes[snap.mode]} />}
-      <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 1.75} />
-    </>
-  );
-}
+const base_url = "http://194.67.84.115:8881";
 
 function App() {
   const [nodes, setNodes] = useState([]);
@@ -76,20 +21,46 @@ function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [models, setModels] = useState([]);
   const [isTokenValid, setIsTokenValid] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(null);
-  const [favorites, setFavorites] = useState([]);
+  const [connections, setConnections] = useState([]);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [changedNodes, setChangedNodes] = useState(new Map());
+  const [isLinkingMode, setIsLinkingMode] = useState(false);
+  const [linkingSourceId, setLinkingSourceId] = useState(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState(null);
 
-  const sceneRef = useRef();
-  const cameraRef = useRef();
-  const rendererRef = useRef();
-  const raycasterRef = useRef(new THREE.Raycaster());
-  const mouseRef = useRef(new THREE.Vector2());
-  const gridHelperRef = useRef();
-  const linesRef = useRef([]);
-  const hitboxesRef = useRef([]);
-  const nodeGroups = useRef([]);
+  const validateAndRefreshToken = async () => {
+    const currentToken = localStorage.getItem('token');
+    if (!currentToken) {
+      setShowLoginModal(true);
+      return false;
+    }
+
+    try {
+      const response = await fetch(base_url + '/api/auth/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentToken}`
+        }
+      });
+
+      if (!response.ok) {
+        setToken('');
+        localStorage.removeItem('token');
+        setShowLoginModal(true);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Token validation failed:', error);
+      setToken('');
+      localStorage.removeItem('token');
+      setShowLoginModal(true);
+      return false;
+    }
+  };
 
   useEffect(() => {
     const checkToken = async () => {
@@ -102,7 +73,6 @@ function App() {
         } else {
           setToken(token);
           loadBuildings();
-          loadFavorites();
         }
       } else {
         setShowLoginModal(true);
@@ -113,282 +83,17 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (selectedNode) {
-      document.getElementById('nodeId').value = selectedNode.userData.nodeId;
-      document.getElementById('nodeLabel').value = selectedNode.userData.name;
-      document.getElementById('nodeNeighbors').value = selectedNode.userData.neighbors;
-      document.getElementById('nodeX').value = selectedNode.position.x;
-      document.getElementById('nodeY').value = selectedNode.position.y;
-      document.getElementById('nodeZ').value = selectedNode.position.z;
-    } else {
-      document.getElementById('nodeId').value = '';
-      document.getElementById('nodeLabel').value = '';
-      document.getElementById('nodeNeighbors').value = '';
-      document.getElementById('nodeX').value = '';
-      document.getElementById('nodeY').value = '';
-      document.getElementById('nodeZ').value = '';
-    }
-  }, [selectedNode]);
-
-  useEffect(() => {
-    console.log('Nodes state changed:', nodes);
-  }, [nodes]);
-
-  useEffect(() => {
-    window.addEventListener('mousedown', onMouseDown, false);
-    window.addEventListener('mouseup', onMouseUp, false);
-
-    return () => {
-      window.removeEventListener('mousedown', onMouseDown, false);
-      window.removeEventListener('mouseup', onMouseUp, false);
-    };
-  }, []);
-
-  useEffect(() => {
     if (selectedBuilding) {
       loadNodesForBuilding(selectedBuilding);
-      loadModelsForBuilding(selectedBuilding);
     }
   }, [selectedBuilding]);
 
-  const loadBuildings = async () => {
-    try {
-      const buildings = await fetchBuildings();
-      setBuildings(buildings);
-      if (buildings.length > 0) {
-        setSelectedBuilding(buildings[0].id);
-      }
-    } catch (error) {
-      console.error('Failed to load buildings:', error);
-      setShowLoginModal(true);
+  useEffect(() => {
+    if (!isLinkingMode) {
+      setLinkingSourceId(null);
+      setHoveredNodeId(null);
     }
-  };
-
-  const fetchBuildings = async () => {
-    try {
-      const response = await fetch(base_url + '/api/buildings', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (!response.ok) {
-        throw new Error('Network response was not ok ' + response.statusText);
-      }
-      const buildings = await response.json();
-      console.log('Buildings loaded:', buildings);
-      return buildings;
-    } catch (error) {
-      console.error('Failed to fetch buildings:', error);
-      throw error;
-    }
-  };
-
-  const fetchNodesForBuilding = async (buildingId) => {
-    try {
-      const response = await fetch(base_url + `/api/buildings/${buildingId}/nodes`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      if (!response.ok) {
-        throw new Error('Network response was not ok ' + response.statusText);
-      }
-      const nodes = await response.json();
-      console.log('Nodes loaded:', nodes);
-      return nodes;
-    } catch (error) {
-      console.error('Failed to fetch nodes:', error);
-      throw error;
-    }
-  };
-
-  const loadNodesForBuilding = async (buildingId) => {
-    try {
-      const nodes = await fetchNodesForBuilding(buildingId);
-      console.log('Fetched nodes:', nodes);
-      setNodes(nodes);
-      clearScene();
-      renderNodes(nodes);
-    } catch (error) {
-      console.error('Failed to load nodes for building:', error);
-      setShowLoginModal(true);
-    }
-  };
-
-  const clearScene = () => {
-    if (sceneRef.current) {
-      sceneRef.current.children.forEach(child => {
-        if (child !== gridHelperRef.current) {
-          sceneRef.current.remove(child);
-        }
-      });
-      linesRef.current = [];
-      hitboxesRef.current = [];
-      nodeGroups.current = [];
-    }
-  };
-
-  const renderNodes = (nodes) => {
-    if (!nodes || nodes.length === 0) {
-      console.warn('No nodes to render');
-      return;
-    }
-
-    nodes.forEach((node, index) => {
-      if (!node.name || !node.neighbors) {
-        console.warn('Node is missing name or neighbors:', node);
-        return;
-      }
-
-      const position = new THREE.Vector3(...node.translation.split(',').map(parseFloat));
-      const group = new THREE.Group();
-      group.position.copy(position);
-      group.userData.nodeId = node.id;
-      group.userData.name = node.name;
-      group.userData.neighbors = node.neighbors; // Добавлено
-      group.userData.translation = node.translation;
-      sceneRef.current.add(group);
-      nodeGroups.current[index] = group;
-
-      const hitboxGeom = new THREE.SphereGeometry(0.5, 32, 32);
-      const hitboxMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, visible: false });
-      const hitbox = new THREE.Mesh(hitboxGeom, hitboxMaterial);
-      hitbox.position.copy(position);
-      hitbox.userData.nodeId = node.id;
-      sceneRef.current.add(hitbox);
-      hitboxesRef.current.push(hitbox);
-
-      const neighbors = node.neighbors.split(',').map(Number);
-      neighbors.forEach(neighborId => {
-        const neighborNode = nodes.find(n => n.id === neighborId);
-        if (neighborNode) {
-          const neighborPosition = new THREE.Vector3(...neighborNode.translation.split(',').map(parseFloat));
-          const lineGeometry = new THREE.BufferGeometry().setFromPoints([position, neighborPosition]);
-          const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
-          const line = new THREE.Line(lineGeometry, lineMaterial);
-          sceneRef.current.add(line);
-          linesRef.current.push(line);
-          console.log(`Created line from node ${node.id} to node ${neighborId}`);
-        }
-      });
-    });
-  };
-
-  const updateNode = () => {
-    const nodeId = selectedNode.userData.nodeId;
-    const nodeLabel = document.getElementById('nodeLabel').value;
-    const nodeNeighbors = document.getElementById('nodeNeighbors').value;
-    const nodeX = document.getElementById('nodeX').value;
-    const nodeY = document.getElementById('nodeY').value;
-    const nodeZ = document.getElementById('nodeZ').value;
-
-    const nodeToUpdate = nodes.find(node => node.id == nodeId);
-    if (nodeToUpdate) {
-      nodeToUpdate.name = nodeLabel;
-      nodeToUpdate.neighbors = nodeNeighbors;
-      nodeToUpdate.translation = `${nodeX},${nodeY},${nodeZ}`;
-
-      fetch(base_url + `/api/nodes/${nodeId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(nodeToUpdate)
-      }).then(response => {
-        if (response.ok) {
-          alert('Node updated successfully');
-        } else {
-          alert('Failed to update node');
-        }
-      });
-    }
-  };
-
-  const deleteNode = () => {
-    const nodeId = selectedNode.userData.nodeId;
-    if (nodeId) {
-      fetch(base_url + `/api/nodes/${nodeId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }).then(response => {
-        if (response.ok) {
-          alert('Node deleted successfully');
-          loadNodesForBuilding(selectedBuilding);
-        } else {
-          alert('Failed to delete node');
-        }
-      });
-    }
-  };
-
-  const createNode = () => {
-    const buildingId = selectedBuilding;
-    const nodeLabel = document.getElementById('newNodeLabel').value;
-    const nodeNeighbors = document.getElementById('newNodeNeighbors').value;
-    const nodeX = document.getElementById('newNodeX').value;
-    const nodeY = document.getElementById('newNodeY').value;
-    const nodeZ = document.getElementById('newNodeZ').value;
-
-    const newNode = {
-      buildingId: buildingId,
-      name: nodeLabel,
-      neighbors: nodeNeighbors,
-      translation: `${nodeX},${nodeY},${nodeZ}`
-    };
-
-    fetch(base_url + '/api/nodes', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify(newNode)
-    }).then(response => {
-      if (response.ok) {
-        alert('Node created successfully');
-        loadNodesForBuilding(selectedBuilding);
-      } else {
-        alert('Failed to create node');
-      }
-    });
-  };
-
-  const onMouseDown = (event) => {
-    onMouseClick(event);
-  };
-
-  const onMouseUp = () => {
-    //setIsDragging(false);
-  };
-
-  const onMouseClick = (event) => {
-    if (!cameraRef.current || !sceneRef.current) return;
-
-    mouseRef.current.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouseRef.current.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-    raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
-    const intersects = raycasterRef.current.intersectObjects(hitboxesRef.current, true);
-
-    if (intersects.length > 0) {
-      const selectedObject = intersects[0].object;
-      console.log(selectedObject)
-      if (selectedObject.type === 'Mesh') {
-        const selectedNodeGroup = selectedObject;
-        if (selectedNodeGroup.userData && selectedNodeGroup.userData.nodeId) {
-          setSelectedNode(selectedNodeGroup);
-          console.log(selectedNodeGroup);
-        }
-        console.log(selectedNodeGroup);
-      }
-      console.log(selectedObject);
-    } else {
-      setSelectedNode(null);
-    }
-  };
+  }, [isLinkingMode]);
 
   const validateToken = async (token) => {
     try {
@@ -454,40 +159,55 @@ function App() {
     setShowLoginModal(true);
   };
 
-  const loadModelsForBuilding = (buildingId) => {
-    const modelsData = JSON.parse(localStorage.getItem(`models_${buildingId}`)) || [];
-    setModels(modelsData);
-    modelsData.forEach(model => {
-      const { url, position } = model;
-      const loader = new THREE.ObjectLoader();
-      loader.load(url, (object) => {
-        object.position.set(...position);
-        sceneRef.current.add(object);
-      });
-    });
-  };
-
-  const saveModelForBuilding = (buildingId, modelUrl, position) => {
-    const modelsData = JSON.parse(localStorage.getItem(`models_${buildingId}`)) || [];
-    modelsData.push({ url: modelUrl, position });
-    localStorage.setItem(`models_${buildingId}`, JSON.stringify(modelsData));
-    setModels(modelsData);
-  };
-
-  const handleModelUpload = (event) => {
-    const file = event.target.files[0];
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const modelUrl = e.target.result;
-      const position = [0, 0, 0];
-      saveModelForBuilding(selectedBuilding, modelUrl, position);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const loadFavorites = async () => {
+  const loadBuildings = async () => {
     try {
-      const response = await fetch(base_url + '/api/users/favorites', {
+      const response = await fetch(`${base_url}/api/buildings`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const buildings = await response.json();
+        setBuildings(buildings);
+        if (buildings.length > 0) {
+          setSelectedBuilding(buildings[0].id);
+        }
+      } else {
+        alert('Не удалось загрузить здания');
+      }
+    } catch (error) {
+      console.error('Ошибка при загрузке зданий:', error);
+      alert('Произошла ошибка при загрузке зданий');
+    }
+  };
+
+  const updateConnectionsFromNodes = (nodes) => {
+    const newConnections = [];
+    nodes.forEach(node => {
+      if (node.neighbors && node.neighbors.trim()) {
+        const neighborIds = node.neighbors.split(',').map(id => id.trim());
+        neighborIds.forEach(neighborId => {
+          const connectionExists = newConnections.some(
+            conn => 
+              (conn.from === node.id && conn.to === parseInt(neighborId)) ||
+              (conn.from === parseInt(neighborId) && conn.to === node.id)
+          );
+          
+          if (!connectionExists) {
+            newConnections.push({
+              from: node.id,
+              to: parseInt(neighborId)
+            });
+          }
+        });
+      }
+    });
+    setConnections(newConnections);
+  };
+
+  const loadNodesForBuilding = async (buildingId) => {
+    try {
+      const response = await fetch(base_url + `/api/buildings/${buildingId}/nodes`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -495,33 +215,39 @@ function App() {
       if (!response.ok) {
         throw new Error('Network response was not ok ' + response.statusText);
       }
-      const favorites = await response.json();
-      setFavorites(favorites);
+      const nodes = await response.json();
+      
+      const nodesWithQuaternion = nodes.map(node => ({
+        ...node,
+        quaternion: node.quaternion || '0,0,0,1'
+      }));
+      
+      setNodes(nodesWithQuaternion);
+      updateConnectionsFromNodes(nodesWithQuaternion);
     } catch (error) {
-      console.error('Failed to load favorites:', error);
+      console.error('Failed to load nodes:', error);
+      setShowLoginModal(true);
     }
   };
-
-  const updateFavorites = async (favorites) => {
+  const handleCreateBuilding = async (buildingName, buildingAddress) => {
     try {
-      const response = await fetch(base_url + '/api/users/favorites', {
+      const response = await fetch(base_url + '/api/buildings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(favorites)
+        body: JSON.stringify({ name: buildingName, address: buildingAddress || '' })
       });
       if (!response.ok) {
         throw new Error('Network response was not ok ' + response.statusText);
       }
-      setFavorites(favorites);
+      loadBuildings();
     } catch (error) {
-      console.error('Failed to update favorites:', error);
+      console.error('Failed to create building:', error);
     }
   };
-
-  const handleRenameBuilding = async (buildingId, newName) => {
+  const handleRenameBuilding = async (buildingId, newName, newAddress) => {
     try {
       const response = await fetch(base_url + `/api/buildings/${buildingId}`, {
         method: 'PUT',
@@ -529,7 +255,10 @@ function App() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ name: newName })
+        body: JSON.stringify({ 
+          name: newName,
+          address: newAddress || ''
+        })
       });
       if (!response.ok) {
         throw new Error('Network response was not ok ' + response.statusText);
@@ -555,36 +284,404 @@ function App() {
     } catch (error) {
       console.error('Failed to delete building:', error);
     }
-  };
-
-  const handleCreateBuilding = async (buildingName) => {
+  };  const createNodeLocal = useCallback(async () => {
     try {
-      const response = await fetch(base_url + '/api/buildings', {
+      // Генерируем случайное целое число от 1000 до 9999
+      const randomName = Math.floor(Math.random() * 9000 + 1000);
+    
+      const newNodeData = {
+        name: randomName.toString(),
+        translation: '0,0,0',
+        quaternion: '0,0,0,1',
+        modelPath: '',  // Пустая строка вместо null
+        type: '',
+        title: '',     // Пустая строка вместо null
+        neighbors: '', // Пустая строка вместо null
+        buildingId: selectedBuilding
+      };
+    
+      // Создаем узел через API
+      const response = await fetch(`${base_url}/buildings/${selectedBuilding}/nodes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ name: buildingName, address: '' })
+        body: JSON.stringify(newNodeData)
       });
+
       if (!response.ok) {
-        throw new Error('Network response was not ok ' + response.statusText);
+        throw new Error('Failed to create node');
       }
-      loadBuildings();
+
+      const createdNode = await response.json();
+      
+      setNodes(prev => [...prev, createdNode]);
+      setSelectedNode(createdNode);
+      setHasUnsavedChanges(true);
+      setChangedNodes(prev => {
+        const updated = new Map(prev);
+        updated.set(createdNode.id, 'added');
+        return updated;
+      });
     } catch (error) {
-      console.error('Failed to create building:', error);
+      console.error('Error creating node:', error);
+      alert('Ошибка при создании точки');
+    }
+  }, [selectedBuilding, token]);
+
+  const updateNodeLocal = async () => {
+    if (!selectedNode || !selectedBuilding || !token) {
+      alert('Необходимо выбрать здание и узел, а также войти в систему');
+      return;
+    }
+
+    const isTokenValid = await validateAndRefreshToken();
+    if (!isTokenValid) {
+      alert('Сессия истекла. Пожалуйста, войдите снова.');
+      return;
+    }
+
+    try {
+      const buildingResponse = await fetch(`${base_url}/api/buildings/${selectedBuilding}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!buildingResponse.ok) {
+        throw new Error('У вас нет прав на редактирование этого здания');
+      }
+
+      const nodeToUpdate = {
+        id: selectedNode.id,
+        name: selectedNode.name || '',
+        translation: selectedNode.translation,
+        neighbors: selectedNode.neighbors || '',
+        buildingId: selectedBuilding,
+        modelPath: selectedNode.modelPath || '',
+        title: selectedNode.title || '',
+        quaternion: '0,0,0,1'
+      };
+
+      const response = await fetch(`${base_url}/buildings/${selectedBuilding}/nodes/${selectedNode.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(nodeToUpdate)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Ошибка обновления узла: ${response.status} ${errorText}`);
+      }
+
+      const updatedNodes = nodes.map(node => 
+        node.id === selectedNode.id ? nodeToUpdate : node
+      );
+      setNodes(updatedNodes);
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error('Error updating node:', error);
+      alert(error.message || 'Не удалось обновить узел. Пожалуйста, попробуйте снова.');
+    }
+  };
+  
+  const deleteNodeLocal = () => {
+    if (!selectedNode) return;
+    
+    const newConnections = connections.filter(
+      conn => conn.from !== selectedNode.id && conn.to !== selectedNode.id
+    );
+    setConnections(newConnections);
+    
+    setNodes(nodes.filter(node => node.id !== selectedNode.id));
+    setSelectedNode(null);
+  };
+  
+  const handleCreateConnection = (nodeId) => {
+    if (!selectedNode || selectedNode.id === nodeId) return;
+
+    const updatedNodes = nodes.map(node => {
+      if (node.id === selectedNode.id) {
+        const currentNeighbors = node.neighbors ? node.neighbors.split(',').map(n => n.trim()) : [];
+        if (!currentNeighbors.includes(nodeId.toString())) {
+          return {
+            ...node,
+            neighbors: [...currentNeighbors, nodeId].join(',')
+          };
+        }
+      }
+      return node;
+    });
+
+    setNodes(updatedNodes);
+    updateConnectionsFromNodes(updatedNodes);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleNodeMove = (nodeId, newTranslation) => {
+    if (!selectedBuilding) {
+      alert('Пожалуйста, выберите здание');
+      return;
+    }
+
+    setNodes(prevNodes => 
+      prevNodes.map(node => 
+        node.id === nodeId ? { 
+          ...node, 
+          translation: newTranslation,
+          buildingId: selectedBuilding,
+          quaternion: node.quaternion || '0,0,0,1'
+        } : node
+      )
+    );
+    
+    setChangedNodes(prev => {
+      const newMap = new Map(prev);
+      newMap.set(nodeId, newTranslation);
+      return newMap;
+    });
+    setHasUnsavedChanges(true);
+  };  
+
+  const handleSaveChanges = async () => {
+    if (!selectedBuilding) {
+      alert('Пожалуйста, выберите здание');
+      return;
+    }
+    
+    if (!token) {
+      alert('Необходимо войти в систему');
+      setShowLoginModal(true);
+      return;
+    }
+
+    const isTokenValid = await validateAndRefreshToken();
+    if (!isTokenValid) {
+      alert('Сессия истекла. Пожалуйста, войдите снова.');
+      return;
+    }
+
+    try {
+      const buildingResponse = await fetch(`${base_url}/api/buildings/${selectedBuilding}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!buildingResponse.ok) {
+        if (buildingResponse.status === 403) {
+          throw new Error('У вас нет прав на редактирование этого здания');
+        }
+        throw new Error('Ошибка при проверке прав доступа к зданию');
+      }
+
+      for (const [nodeId, translation] of changedNodes) {
+        const node = nodes.find(n => n.id === nodeId);
+        if (!node) continue;
+        
+        const response = await fetch(`${base_url}/buildings/${selectedBuilding}/nodes/${nodeId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            id: nodeId,
+            name: node.name || '',
+            translation,
+            neighbors: node.neighbors || '',
+            buildingId: selectedBuilding,
+            modelPath: node.modelPath || '',
+            title: node.title || '',
+            quaternion: '0,0,0,1'
+          })
+        });
+
+        if (!response.ok) {
+          if (response.status === 403) {
+            throw new Error('Сессия истекла или нет прав для редактирования. Пожалуйста, войдите снова.');
+          }
+          const errorText = await response.text();
+          throw new Error(`Ошибка сохранения узла ${nodeId}: ${response.status} ${errorText}`);
+        }
+      }
+
+      setChangedNodes(new Map());
+      setHasUnsavedChanges(false);
+      alert('Изменения успешно сохранены');
+    } catch (error) {
+      console.error('Error saving changes:', error);
+      if (error.message.includes('Сессия истекла')) {
+        setShowLoginModal(true);
+      }
+      alert(error.message || 'Не удалось сохранить изменения. Пожалуйста, попробуйте снова.');
     }
   };
 
-  useEffect(() => {
-    if (sceneRef.current && cameraRef.current && rendererRef.current) {
-      console.log('Creating GridHelper');
-      gridHelperRef.current = new THREE.GridHelper(100, 100);
-      gridHelperRef.current.position.set(0, -2, 0);
-      sceneRef.current.add(gridHelperRef.current);
-      console.log('GridHelper added to scene');
+  const handleAddConnection = async (fromId, toId) => {
+    if (!selectedBuilding || !token) {
+      alert('Необходимо выбрать здание и войти в систему');
+      return;
     }
-  }, [sceneRef, cameraRef, rendererRef]);
+
+    try {
+      const fromNode = nodes.find(n => n.id === fromId);
+      const toNode = nodes.find(n => n.id === toId);
+      
+      if (!fromNode || !toNode) {
+        throw new Error('Узлы не найдены');
+      }
+
+      const fromNeighbors = fromNode.neighbors ? 
+        fromNode.neighbors.split(',').map(n => n.trim()) : [];
+      if (!fromNeighbors.includes(toId.toString())) {
+        fromNeighbors.push(toId.toString());
+      }
+
+      const toNeighbors = toNode.neighbors ?
+        toNode.neighbors.split(',').map(n => n.trim()) : [];
+      if (!toNeighbors.includes(fromId.toString())) {
+        toNeighbors.push(fromId.toString());
+      }
+
+      await Promise.all([
+        fetch(`${base_url}/buildings/${selectedBuilding}/nodes/${fromId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            ...fromNode,
+            neighbors: fromNeighbors.join(',')
+          })
+        }),
+        fetch(`${base_url}/buildings/${selectedBuilding}/nodes/${toId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            ...toNode,
+            neighbors: toNeighbors.join(',')
+          })
+        })
+      ]);
+
+      setNodes(prevNodes => 
+        prevNodes.map(node => {
+          if (node.id === fromId) {
+            return { ...node, neighbors: fromNeighbors.join(',') };
+          }
+          if (node.id === toId) {
+            return { ...node, neighbors: toNeighbors.join(',') };
+          }
+          return node;
+        })
+      );
+
+      setConnections(prev => [
+        ...prev,
+        { from: fromId, to: toId }
+      ]);
+
+    } catch (error) {
+      console.error('Error adding connection:', error);
+      alert('Не удалось создать связь: ' + error.message);
+    }
+  };
+
+  const handleRemoveConnection = async (fromId, toId) => {
+    if (!selectedBuilding || !token) {
+      alert('Необходимо выбрать здание и войти в систему');
+      return;
+    }
+
+    try {
+      const fromNode = nodes.find(n => n.id === fromId);
+      const toNode = nodes.find(n => n.id === toId);
+      
+      if (!fromNode || !toNode) {
+        throw new Error('Узлы не найдены');
+      }
+
+      const fromNeighbors = fromNode.neighbors ?
+        fromNode.neighbors.split(',').filter(n => n.trim() !== toId.toString()) : [];
+      const toNeighbors = toNode.neighbors ?
+        toNode.neighbors.split(',').filter(n => n.trim() !== fromId.toString()) : [];
+
+      await Promise.all([
+        fetch(`${base_url}/buildings/${selectedBuilding}/nodes/${fromId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            ...fromNode,
+            neighbors: fromNeighbors.join(',')
+          })
+        }),
+        fetch(`${base_url}/buildings/${selectedBuilding}/nodes/${toId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            ...toNode,
+            neighbors: toNeighbors.join(',')
+          })
+        })
+      ]);
+
+      setNodes(prevNodes => 
+        prevNodes.map(node => {
+          if (node.id === fromId) {
+            return { ...node, neighbors: fromNeighbors.join(',') };
+          }
+          if (node.id === toId) {
+            return { ...node, neighbors: toNeighbors.join(',') };
+          }
+          return node;
+        })
+      );
+
+      setConnections(prev => 
+        prev.filter(conn => 
+          !(conn.from === fromId && conn.to === toId) &&
+          !(conn.from === toId && conn.to === fromId)
+        )
+      );
+
+    } catch (error) {
+      console.error('Error removing connection:', error);
+      alert('Не удалось удалить связь: ' + error.message);
+    }
+  };
+
+  const handleNodeSelect = useCallback((node) => {
+    if (isLinkingMode) {
+      if (!linkingSourceId) {
+        setLinkingSourceId(node.id);
+      } else if (node.id !== linkingSourceId) {
+        handleAddConnection(linkingSourceId, node.id);
+        setLinkingSourceId(null);
+        setIsLinkingMode(false);
+      }
+    } else {
+      setSelectedNode(node);
+    }
+  }, [isLinkingMode, linkingSourceId]);
+
+  const handleNodeHover = useCallback((nodeId) => {
+    setHoveredNodeId(nodeId);
+  }, []);
 
   return (
     <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
@@ -599,20 +696,23 @@ function App() {
         onCreate={handleCreateBuilding}
       />
       <BuildingName buildingName={buildings.find(building => building.id === selectedBuilding)?.name} />
-      <div id="controls" className={isSidebarOpen ? 'sidebar-open' : ''} style={{ position: 'absolute', top: '10px', left: '75px', zIndex: 1000 }}>
+      <div id="controls" className={isSidebarOpen ? 'sidebar-open' : ''} 
+        style={{ position: 'absolute', top: '10px', left: '75px', zIndex: 1000 }}>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <NodeControls
             selectedNode={selectedNode}
+            setSelectedNode={setSelectedNode}
             buildings={buildings}
             selectedBuilding={selectedBuilding}
             setSelectedBuilding={setSelectedBuilding}
-            updateNode={updateNode}
-            deleteNode={deleteNode}
             nodes={nodes}
+            onCreateConnection={handleCreateConnection}
+            createNode={createNodeLocal}
+            updateNode={updateNodeLocal}
+            deleteNode={deleteNodeLocal}
+            isLinkingMode={isLinkingMode}
+            setIsLinkingMode={setIsLinkingMode}
           />
-          <ModelManager scene={sceneRef.current} onModelSelect={setSelectedModel} />
-          <CreateNodeControls createNode={createNode} />
-          <NodeInfo selectedNode={selectedNode} />
         </div>
       </div>
       {isTokenValid ? (
@@ -632,149 +732,40 @@ function App() {
           Войти
         </button>
       )}
-      <Canvas
-        style={{ width: '100%', height: '100%' }}
-        camera={{ position: [0, 0, 20] }}
-        onCreated={({ gl, scene, camera }) => {
-          sceneRef.current = scene;
-          cameraRef.current = camera;
-          rendererRef.current = gl;
-          console.log('Canvas created:', { gl, scene, camera });
-        }}
-      >
-        <SceneComponent
-          nodes={nodes}
-          nodeGroups={nodeGroups}
-          linesRef={linesRef}
-          models={models}
-          selectedNode={selectedNode}
-          rendererRef={rendererRef}
-          sceneRef={sceneRef}
-          cameraRef={cameraRef}
-          gridHelperRef={gridHelperRef}
-          onNodeMove={(nodeId, newPosition) => {
-            const updatedNodes = nodes.map(node => {
-              if (node.id === nodeId) {
-                return { ...node, translation: newPosition.join(',') };
-              }
-              return node;
-            });
-            setNodes(updatedNodes);
-          }}
-        />
-        <Controls selectedModel={selectedModel} />
-      </Canvas>
+      <Scene3D 
+        nodes={nodes}
+        connections={connections}
+        selectedNodeId={selectedNode?.id}
+        onSelectNode={handleNodeSelect}
+        onNodeMove={handleNodeMove}
+        onAddConnection={handleAddConnection}
+        onRemoveConnection={handleRemoveConnection}
+        isLinkingMode={isLinkingMode}
+        linkingSourceId={linkingSourceId}
+        hoveredNodeId={hoveredNodeId}
+        onNodeHover={handleNodeHover}
+      />
       <LoginModal
         show={showLoginModal}
         onClose={() => setShowLoginModal(false)}
         onLogin={login}
         onRegister={register}
       />
+      <SaveChangesButton 
+        onSave={handleSaveChanges}
+        visible={hasUnsavedChanges}
+      />
+      <div className="scene-container">
+        <Scene3D
+          nodes={nodes}
+          connections={connections}
+          selectedNodeId={selectedNode?.id}
+          onSelectNode={setSelectedNode}
+          onNodeMove={handleNodeMove}
+        />
+      </div>
     </div>
   );
 }
-
-const SceneComponent = ({ nodes, nodeGroups, linesRef, models, selectedNode, rendererRef, sceneRef, cameraRef, gridHelperRef, onNodeMove }) => {
-  const { scene, camera, gl } = useThree();
-  const [hovered, setHovered] = useState(false);
-  const [objectsAdded, setObjectsAdded] = useState(false);
-
-  useEffect(() => {
-    console.log('Creating GridHelper');
-    gridHelperRef.current = new THREE.GridHelper(100, 100);
-    gridHelperRef.current.position.set(0, -2, 0);
-    scene.add(gridHelperRef.current);
-    console.log('GridHelper added to scene');
-  }, [scene, camera, gl]);
-
-  useEffect(() => {
-    if (nodes.length > 0) {
-      linesRef.current.forEach(line => {
-        scene.remove(line);
-      });
-      linesRef.current = [];
-
-      nodes.forEach((node, index) => {
-        const position = new THREE.Vector3(...node.translation.split(',').map(parseFloat));
-        const neighbors = node.neighbors.split(',').map(Number);
-        neighbors.forEach(neighborId => {
-          const neighborNode = nodes.find(n => n.id === neighborId);
-          if (neighborNode) {
-            const neighborPosition = new THREE.Vector3(...neighborNode.translation.split(',').map(parseFloat));
-            const lineGeometry = new THREE.BufferGeometry().setFromPoints([position, neighborPosition]);
-            const lineMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
-            const line = new THREE.Line(lineGeometry, lineMaterial);
-            scene.add(line);
-            linesRef.current.push(line);
-          }
-        });
-      });
-    }
-  }, [nodes, scene]);
-
-  useFrame(() => {
-    if (rendererRef.current && sceneRef.current && cameraRef.current) {
-      rendererRef.current.render(sceneRef.current, cameraRef.current);
-    }
-
-    // Update lines if a node is selected and being transformed
-    if (selectedNode) {
-      const selectedNodeId = selectedNode.userData.nodeId;
-      const nodeNeighbors = selectedNode.userData.neighbors;
-      if (nodeNeighbors) {
-        const neighbors = nodeNeighbors.split(',').map(Number);
-        neighbors.forEach(neighborId => {
-          const neighborNode = nodes.find(n => n.id === neighborId);
-          if (neighborNode) {
-            const neighborPosition = new THREE.Vector3(...neighborNode.translation.split(',').map(parseFloat));
-            const line = linesRef.current.find(line => {
-              const points = line.geometry.attributes.position.array;
-              return points[0] === selectedNode.position.x && points[1] === selectedNode.position.y && points[2] === selectedNode.position.z;
-            });
-            if (line) {
-              line.geometry.setFromPoints([selectedNode.position, neighborPosition]);
-              line.geometry.attributes.position.needsUpdate = true;
-            }
-          }
-        });
-      }
-    }
-  });
-
-  return (
-    <>
-      {nodeGroups.current.map((group, index) => {
-        const node = nodes[index];
-        const position = node.translation.split(',').map(parseFloat);
-        return (
-          <group key={node.id}>
-            <Node
-              name={node.id}
-              position={position}
-              color={selectedNode && selectedNode.userData.nodeId === node.id ? 0xff0000 : 0x00ff00}
-              onClick={(e) => (e.stopPropagation(), (state.current = node.id))}
-              onContextMenu={(e) => state.current === node.id && (e.stopPropagation(), (state.mode = (state.mode + 1) % modes.length))}
-              onPointerOver={() => setHovered(true)}
-              onPointerOut={() => setHovered(false)}
-              setHovered={setHovered}
-            />
-          </group>
-        );
-      })}
-      {linesRef.current.map((line, index) => (
-        <line key={index} geometry={line.geometry} material={line.material} />
-      ))}
-      {models.map((model, index) => {
-        const { url, position } = model;
-        return (
-          <mesh key={index} position={position}>
-            <boxGeometry args={[1, 1, 1]} />
-            <meshBasicMaterial color={0x0000ff} />
-          </mesh>
-        );
-      })}
-    </>
-  );
-};
 
 export default App;

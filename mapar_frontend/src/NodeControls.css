@@ -1,8 +1,10 @@
 .controls {
+    width: 280px;
     padding: 10px;
     background-color: #f5f5f5;
     border-radius: 5px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    margin: 0 auto;
 }
 
 .controls label {
@@ -22,6 +24,7 @@
 .controls button {
     padding: 10px 20px;
     margin-right: 10px;
+    margin-bottom: 10px;
     border: none;
     border-radius: 3px;
     background-color: #3498db;
@@ -31,5 +34,79 @@
 }
 
 .controls button:hover {
-    background-color: #2ecc71;
+    background-color: #2980b9;
+}
+
+.controls .danger-button {
+    background-color: #e74c3c;
+}
+
+.controls .danger-button:hover {
+    background-color: #c0392b;
+}
+
+.controls .active-button {
+    background-color: #27ae60;
+}
+
+.controls .active-button:hover {
+    background-color: #219a52;
+}
+
+.coordinates {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.coord-input {
+    flex: 1;
+}
+
+.coord-input input {
+    width: 100%;
+}
+
+.actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.link-button {
+    background-color: #9b59b6 !important;
+}
+
+.link-button:hover {
+    background-color: #8e44ad !important;
+}
+
+.link-button.active {
+    background-color: #ff8800 !important;
+}
+
+.link-button.active:hover {
+    background-color: #ff6600 !important;
+}
+
+.linking-info {
+    background-color: rgba(255, 136, 0, 0.1);
+    border: 1px solid #ff8800;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 15px;
+}
+
+.linking-info p {
+    color: #ff6600;
+    margin: 0;
+    font-size: 14px;
+    text-align: center;
 }

@@ -1,50 +1,160 @@
 import React from 'react';
+import PropTypes from 'prop-types';
 import './NodeControls.css';
 
-const NodeControls = ({ selectedNode, buildings, selectedBuilding, setSelectedBuilding, updateNode, deleteNode, nodes, highlightSelectedNode }) => {
-    return (
-        <div className="controls">
-            <h3>Edit Node</h3>
-            <div>
-                <label htmlFor="buildingId">Building:</label>
-                <select id="buildingId" value={selectedBuilding || ''} onChange={(e) => setSelectedBuilding(e.target.value)}>
-                    {buildings.map(building => (
-                        <option key={building.id} value={building.id}>{building.name}</option>
-                    ))}
-                </select>
-            </div>
-            <div>
-                <label htmlFor="nodeId">Node ID:</label>
-                <select id="nodeId" value={selectedNode ? selectedNode.userData.id : ''} onChange={(e) => highlightSelectedNode(e.target.value)}>
-                    {nodes.map(node => (
-                        <option key={node.id} value={node.id}>{node.id}</option>
-                    ))}
-                </select>
-            </div>
-            <div>
-                <label htmlFor="nodeLabel">Name:</label>
-                <input type="text" id="nodeLabel" defaultValue={selectedNode ? selectedNode.userData.name : ''} />
-            </div>
-            <div>
-                <label htmlFor="nodeNeighbors">Neighbors:</label>
-                <input type="text" id="nodeNeighbors" defaultValue={selectedNode ? selectedNode.userData.neighbors : ''} />
-            </div>
-            <div>
-                <label htmlFor="nodeX">X:</label>
-                <input type="number" id="nodeX" step="0.1" defaultValue={selectedNode ? selectedNode.position.x : ''} />
-            </div>
-            <div>
-                <label htmlFor="nodeY">Y:</label>
-                <input type="number" id="nodeY" step="0.1" defaultValue={selectedNode ? selectedNode.position.y : ''} />
-            </div>
-            <div>
-                <label htmlFor="nodeZ">Z:</label>
-                <input type="number" id="nodeZ" step="0.1" defaultValue={selectedNode ? selectedNode.position.z : ''} />
-            </div>
-            <button id="updateNode" onClick={updateNode}>Update Node</button>
-            <button id="deleteNode" onClick={deleteNode}>Delete Node</button>
+const NodeControls = ({
+  selectedNode,
+  nodes,
+  setSelectedNode,
+  createNode,
+  updateNode,
+  deleteNode,
+  isLinkingMode,
+  setIsLinkingMode
+}) => {
+  const handleFieldChange = (field, value) => {
+    setSelectedNode(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handlePositionChange = (axis, value) => {
+    const translation = selectedNode.translation.split(',');
+    const index = {x: 0, y: 1, z: 2}[axis];
+    translation[index] = value || 0;
+    setSelectedNode(prev => ({
+      ...prev,
+      translation: translation.join(',')
+    }));
+  };
+
+  return (
+    <div className="controls">
+      <h3>Управление точками</h3>
+      
+      <div className="button-group">
+        <button onClick={createNode}>➕ Новая точка</button>
+        <button onClick={updateNode}>💾 Сохранить</button>
+        <button
+          className={`link-button ${isLinkingMode ? 'active' : ''}`}
+          onClick={() => setIsLinkingMode(!isLinkingMode)}
+        >
+          {isLinkingMode ? '🔗 Завершить связывание' : '🔗 Связать'}
+        </button>
+      </div>
+
+      {/* Информация о режиме связывания */}
+      {isLinkingMode && (
+        <div className="linking-info">
+          <p>Выберите две точки для создания связи между ними</p>
         </div>
-    );
+      )}
+
+      <div className="form-section">
+        <label>ID:</label>
+        <input
+          type="text"
+          value={selectedNode?.id || ''}
+          readOnly
+        />
+      </div>      <div className="form-section">
+        <label>Тип:</label>
+        <select
+          value={selectedNode?.type || ''}
+          onChange={(e) => handleFieldChange('type', e.target.value)}
+        >
+          <option value="">Обычный</option>
+          <option value="view">Вид</option>
+        </select>
+      </div>
+
+      {selectedNode?.type === 'view' && (
+        <div className="form-section">
+          <label>Заголовок:</label>
+          <input
+            type="text"
+            value={selectedNode?.title || ''}
+            onChange={(e) => handleFieldChange('title', e.target.value)}
+            placeholder="Введите заголовок для вида"
+          />
+        </div>
+      )}
+
+      <div className="form-section">
+        <label>Связи:</label>
+        <input
+          type="text"
+          value={selectedNode?.neighbors || ''}
+          onChange={(e) => handleFieldChange('neighbors', e.target.value)}
+          placeholder="ID узлов через запятую"
+        />
+      </div>
+
+      <div className="coordinates">
+        <div className="coord-input">
+          <label>X:</label>
+          <input
+            type="number"
+            step="0.1"
+            value={selectedNode?.translation?.split(',')[0] || 0}
+            onChange={(e) => handlePositionChange('x', e.target.value)}
+          />
+        </div>
+        <div className="coord-input">
+          <label>Y:</label>
+          <input
+            type="number"
+            step="0.1"
+            value={selectedNode?.translation?.split(',')[1] || 0}
+          onChange={(e) => handlePositionChange('y', e.target.value)}
+          />
+        </div>
+        <div className="coord-input">
+          <label>Z:</label>
+          <input
+            type="number"
+            step="0.1"
+            value={selectedNode?.translation?.split(',')[2] || 0}
+          onChange={(e) => handlePositionChange('z', e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="actions">
+        <button onClick={deleteNode} className="danger-button">
+          ❌ Удалить
+        </button>
+      </div>
+    </div>
+  );
+};
+
+NodeControls.propTypes = {
+  selectedNode: PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+    name: PropTypes.string,
+    type: PropTypes.string,
+    title: PropTypes.string,
+    neighbors: PropTypes.string,
+    translation: PropTypes.string,
+    quaternion: PropTypes.string,
+    modelPath: PropTypes.string
+  }),
+  nodes: PropTypes.arrayOf(PropTypes.shape({
+    id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
+    translation: PropTypes.string.isRequired
+  })).isRequired,
+  setSelectedNode: PropTypes.func.isRequired,
+  createNode: PropTypes.func.isRequired,
+  updateNode: PropTypes.func.isRequired,
+  deleteNode: PropTypes.func.isRequired,
+  isLinkingMode: PropTypes.bool.isRequired,
+  setIsLinkingMode: PropTypes.func.isRequired
+};
+
+NodeControls.defaultProps = {
+  selectedNode: null
 };
 
 export default NodeControls;
