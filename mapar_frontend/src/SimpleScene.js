@@ -4,7 +4,6 @@ import { Line } from '@react-three/drei';
 import PropTypes from 'prop-types';
 
 function SimpleScene({ nodes, connections }) {
-  // Помощник для создания линий между точками
   const createLine = (start, end, color = "blue", width = 1) => (
     <Line
       points={[start, end]}
@@ -13,7 +12,6 @@ function SimpleScene({ nodes, connections }) {
     />
   );
 
-  // Создаем оси координат
   const axes = (
     <>
       {createLine([0, 0, 0], [2, 0, 0], "red", 2)}
@@ -22,7 +20,6 @@ function SimpleScene({ nodes, connections }) {
     </>
   );
 
-  // Создаем соединения между узлами
   const nodeConnections = connections.map(conn => {
     const fromNode = nodes.find(n => n.id === conn.from);
     const toNode = nodes.find(n => n.id === conn.to);

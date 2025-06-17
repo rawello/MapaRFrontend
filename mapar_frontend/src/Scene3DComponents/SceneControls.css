@@ -87,7 +87,6 @@
   background: var(--pressed-color);
 }
 
-/* Стили для слайдеров */
 .slider-control {
   display: flex;
   flex-direction: column;
@@ -124,7 +123,6 @@
   box-shadow: var(--shadow-small);
 }
 
-/* Стили для чекбоксов */
 .checkbox-control {
   display: flex;
   align-items: center;

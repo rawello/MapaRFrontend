@@ -6,7 +6,6 @@ import PropTypes from 'prop-types';
 function SceneSetup({ nodes, connections }) {
   const { scene } = useThree();
 
-  // Помощник для создания стрелок осей координат
   const createArrow = (direction, color) => {
     const length = 2;
     const start = [0, 0, 0];
@@ -18,7 +17,6 @@ function SceneSetup({ nodes, connections }) {
           color={color}
           lineWidth={2}
         />
-        {/* Метка оси */}
         <Html position={end}>
           <div style={{
             color: color,
@@ -35,7 +33,6 @@ function SceneSetup({ nodes, connections }) {
     );
   };
 
-  // Создаем соединения между узлами
   const renderConnections = () => {
     return connections.map(conn => {
       const fromNode = nodes.find(n => n.id === conn.from);
@@ -60,22 +57,17 @@ function SceneSetup({ nodes, connections }) {
 
   return (
     <>
-      {/* Оси координат со стрелками */}
       {createArrow([1, 0, 0], "red")}
       {createArrow([0, 1, 0], "green")}
       {createArrow([0, 0, 1], "blue")}
       
-      {/* Соединения между узлами */}
       {renderConnections()}
       
-      {/* Сетка */}
       <gridHelper args={[100, 100]} position={[0, -2, 0]} />
       
-      {/* Освещение */}
       <ambientLight intensity={0.5} />
       <directionalLight position={[10, 10, 10]} intensity={1} castShadow />
       
-      {/* Управление камерой */}
       <OrbitControls makeDefault enableDamping dampingFactor={0.05} />
     </>
   );

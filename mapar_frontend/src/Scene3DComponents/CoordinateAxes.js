@@ -8,7 +8,6 @@ function CoordinateAxes() {
 
   return (
     <group>
-      {/* X axis - red */}
       <group>
         <mesh position={[arrowLength / 2, 0, 0]}>
           <cylinderGeometry args={[0.02, 0.02, arrowLength]} rotation={[0, 0, Math.PI / 2]} />
@@ -23,7 +22,6 @@ function CoordinateAxes() {
         </Html>
       </group>
 
-      {/* Y axis - green */}
       <group>
         <mesh position={[0, arrowLength / 2, 0]}>
           <cylinderGeometry args={[0.02, 0.02, arrowLength]} />
@@ -38,7 +36,6 @@ function CoordinateAxes() {
         </Html>
       </group>
 
-      {/* Z axis - blue */}
       <group>
         <mesh position={[0, 0, arrowLength / 2]} rotation={[Math.PI / 2, 0, 0]}>
           <cylinderGeometry args={[0.02, 0.02, arrowLength]} />

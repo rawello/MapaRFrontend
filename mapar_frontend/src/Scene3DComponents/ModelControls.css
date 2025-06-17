@@ -94,7 +94,6 @@
     color: var(--text-secondary);
 }
 
-/* Дополнительные стили для кнопок с иконками */
 .model-controls button svg,
 .model-buttons .upload-button svg {
     width: 16px;
@@ -107,7 +106,6 @@
     transform: scale(1.1);
 }
 
-/* Стили для вспомогательных элементов */
 .model-controls .tooltip {
     position: absolute;
     background: var(--panel-background);
@@ -130,7 +128,6 @@
     opacity: 1;
 }
 
-/* Стили для групп кнопок */
 .model-control-group {
     display: flex;
     gap: 4px;
@@ -143,7 +140,6 @@
     padding: 6px 12px;
 }
 
-/* Стили для индикаторов состояния */
 .model-control-indicator {
     width: 6px;
     height: 6px;

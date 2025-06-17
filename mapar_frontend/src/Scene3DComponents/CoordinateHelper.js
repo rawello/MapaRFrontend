@@ -11,7 +11,6 @@ export function CoordinateHelper({ size = 5 }) {
 
   return (
     <group>
-      {/* X axis (красный) */}
       <Line
         points={[[0, 0, 0], [size, 0, 0]]}
         color={axisColor.x}
@@ -25,7 +24,6 @@ export function CoordinateHelper({ size = 5 }) {
         X
       </Text>
 
-      {/* Y axis (зеленый) */}
       <Line
         points={[[0, 0, 0], [0, size, 0]]}
         color={axisColor.y}
@@ -39,7 +37,6 @@ export function CoordinateHelper({ size = 5 }) {
         Y
       </Text>
 
-      {/* Z axis (синий) */}
       <Line
         points={[[0, 0, 0], [0, 0, size]]}
         color={axisColor.z}
@@ -53,10 +50,8 @@ export function CoordinateHelper({ size = 5 }) {
         Z
       </Text>
 
-      {/* Метки расстояния каждый метр */}
       {Array.from({ length: size }).map((_, i) => (
         <group key={i}>
-          {/* X axis маркеры */}
           <Line
             points={[[i + 1, -0.1, 0], [i + 1, 0.1, 0]]}
             color={axisColor.x}
@@ -71,7 +66,6 @@ export function CoordinateHelper({ size = 5 }) {
             {i + 1}m
           </Text>
 
-          {/* Y axis маркеры */}
           <Line
             points={[[-0.1, i + 1, 0], [0.1, i + 1, 0]]}
             color={axisColor.y}
@@ -85,7 +79,6 @@ export function CoordinateHelper({ size = 5 }) {
             {i + 1}m
           </Text>
 
-          {/* Z axis маркеры */}
           <Line
             points={[[-0.1, 0, i + 1], [0.1, 0, i + 1]]}
             color={axisColor.z}
@@ -101,7 +94,6 @@ export function CoordinateHelper({ size = 5 }) {
         </group>
       ))}
 
-      {/* Центральная точка */}
       <mesh>
         <sphereGeometry args={[0.05]} />
         <meshBasicMaterial color="#ffffff" />

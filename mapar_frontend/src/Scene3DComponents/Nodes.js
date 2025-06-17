@@ -4,7 +4,7 @@ import { useFrame } from '@react-three/fiber';
 import PropTypes from 'prop-types';
 
 export function Node({ 
-  position = [0, 0, 0], // Добавляем значение по умолчанию
+  position = [0, 0, 0], 
   nodeId, 
   onClick, 
   onHover,
@@ -20,7 +20,6 @@ export function Node({
   const isViewType = modelPath === 'view';
   const dimensions = isViewType ? [1, 0.5, 0.3] : [0.5, 0.5, 0.5];
   
-  // Определяем цвет узла
   let nodeColor = '#00ff00';
   if (isLinkingSource) {
     nodeColor = '#ff8800';
@@ -32,7 +31,6 @@ export function Node({
     nodeColor = '#4488ff';
   }
 
-  // Безопасное форматирование координат
   const formatCoordinates = (pos) => {
     if (!Array.isArray(pos) || pos.length < 3) {
       pos = [0, 0, 0];
@@ -40,7 +38,6 @@ export function Node({
     return `[${pos[0].toFixed(1)}, ${pos[1].toFixed(1)}, ${pos[2].toFixed(1)}]`;
   };
 
-  // Обновляем позицию меток каждый кадр без изменения прозрачности
   useFrame(() => {
     if (htmlRef.current) {
       htmlRef.current.style.display = 'block';
@@ -74,7 +71,6 @@ export function Node({
         <meshStandardMaterial color={nodeColor} />
       </Box>
 
-      {/* Координаты и имя узла */}
       <Html
         ref={htmlRef}
         position={[position[0], position[1] + dimensions[1] * 0.7, position[2]]}
@@ -94,7 +90,6 @@ export function Node({
         {`${name || nodeId} ${formatCoordinates(position)}`}
       </Html>
 
-      {/* Заголовок узла view */}
       {isViewType && title && (
         <Html
           ref={titleRef}
@@ -166,8 +161,8 @@ export function Nodes({
         isLinkingSource={linkingSourceId === node.id}
         isLinkingTarget={linkingSourceId && hoveredNodeId === node.id}
         modelPath={node.modelPath}
-        name={node.name}  // Используем name вместо title
-        title={node.title}  // Оставляем title для view nodes
+        name={node.name}
+        title={node.title} 
       />
     );
   });
@@ -177,7 +172,7 @@ Nodes.propTypes = {
   nodes: PropTypes.arrayOf(PropTypes.shape({
     id: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
     translation: PropTypes.string.isRequired,
-    name: PropTypes.string,  // Добавляем name в PropTypes
+    name: PropTypes.string,
     title: PropTypes.string,
     modelPath: PropTypes.string
   })).isRequired,

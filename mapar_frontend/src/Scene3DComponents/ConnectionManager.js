@@ -11,13 +11,12 @@ export function ConnectionManager({
   linkingSourceId,
   hoveredNodeId
 }) {
-  // Get source node if we're linking
   const sourceNode = nodes.find(n => n.id === linkingSourceId);
   const targetNode = nodes.find(n => n.id === hoveredNodeId);
 
   return (
     <group>
-      {/* Существующие соединения */}
+      {}
       {connections.map(conn => {
         const fromNode = nodes.find(n => n.id === conn.from);
         const toNode = nodes.find(n => n.id === conn.to);
@@ -31,15 +30,12 @@ export function ConnectionManager({
             (fromPos[2] + toPos[2]) / 2
           ];
 
-          // Определяем, является ли линия активной
           const isActive = 
             (fromNode.id === linkingSourceId && toNode.id === hoveredNodeId) ||
             (toNode.id === linkingSourceId && fromNode.id === hoveredNodeId);
           
           return (
             <group key={`${conn.from}-${conn.to}`}>
-              {/* Линия связи */}
-              {/* Основная линия связи */}
               <Line
                 points={[fromPos, toPos]}
                 color={isActive ? "#ff8800" : "#4488ff"}
@@ -47,7 +43,6 @@ export function ConnectionManager({
                 transparent
                 opacity={isActive ? 1 : 0.8}
               />
-              {/* Светящаяся подложка */}
               <Line
                 points={[fromPos, toPos]}
                 color={isActive ? "#ffaa44" : "#88aaff"}
@@ -56,14 +51,14 @@ export function ConnectionManager({
                 opacity={isActive ? 0.4 : 0.3}
               />
 
-              {/* Кнопка удаления связи */}
               <Html
                 position={midPoint}
                 style={{ 
-                  pointerEvents: 'none',
+                  pointerEvents: 'auto',
                   transform: 'translate(-50%, -50%)'
                 }}
                 center
+                zIndexRange={[0, 0]}
               >
                 <button
                   onClick={(e) => {
@@ -84,11 +79,7 @@ export function ConnectionManager({
                     color: 'white',
                     pointerEvents: 'auto',
                     transition: 'all 0.2s ease',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                    ':hover': {
-                      background: 'rgba(255,0,0,0.9)',
-                      transform: 'scale(1.1)'
-                    }
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'rgba(255,0,0,0.9)';
@@ -108,10 +99,8 @@ export function ConnectionManager({
         return null;
       })}
 
-      {/* Активная связь при создании */}
       {isLinkingMode && sourceNode && (
         <>
-          {/* Подсветка */}
           <Line
             points={[
               sourceNode.translation.split(',').map(Number),
@@ -124,7 +113,6 @@ export function ConnectionManager({
             transparent
             opacity={0.3}
           />
-          {/* Основная линия */}
           <Line
             points={[
               sourceNode.translation.split(',').map(Number),

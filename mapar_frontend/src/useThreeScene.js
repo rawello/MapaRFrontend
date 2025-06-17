@@ -10,22 +10,18 @@ function useThreeScene(container, nodes, connections) {
   useEffect(() => {
     if (!container.current) return;
 
-    // Setup
     renderer.current.setSize(container.current.clientWidth, container.current.clientHeight);
     container.current.appendChild(renderer.current.domElement);
     
     camera.current.position.z = 20;
     
-    // Add coordinates axes
     const axesHelper = new THREE.AxesHelper(2);
     scene.current.add(axesHelper);
     
-    // Add grid
     const gridHelper = new THREE.GridHelper(100, 100);
     gridHelper.position.y = -2;
     scene.current.add(gridHelper);
 
-    // Add lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     scene.current.add(ambientLight);
 
@@ -33,7 +29,6 @@ function useThreeScene(container, nodes, connections) {
     directionalLight.position.set(10, 10, 10);
     scene.current.add(directionalLight);
 
-    // Animation loop
     function animate() {
       requestAnimationFrame(animate);
       renderer.current.render(scene.current, camera.current);
@@ -41,7 +36,6 @@ function useThreeScene(container, nodes, connections) {
     }
     animate();
 
-    // Cleanup
     return () => {
       if (container.current) {
         container.current.removeChild(renderer.current.domElement);
@@ -53,15 +47,12 @@ function useThreeScene(container, nodes, connections) {
     };
   }, [container]);
 
-  // Update nodes and connections
   useEffect(() => {
-    // Remove old nodes and connections
     const objectsToRemove = scene.current.children.filter(
       child => child.userData.type === 'node' || child.userData.type === 'connection'
     );
     objectsToRemove.forEach(obj => scene.current.remove(obj));
 
-    // Add new nodes
     nodes.forEach(node => {
       const geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
       const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
@@ -72,7 +63,6 @@ function useThreeScene(container, nodes, connections) {
       scene.current.add(mesh);
     });
 
-    // Add new connections
     connections.forEach(conn => {
       const fromNode = nodes.find(n => n.id === conn.from);
       const toNode = nodes.find(n => n.id === conn.to);

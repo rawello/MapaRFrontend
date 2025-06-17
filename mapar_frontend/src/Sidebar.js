@@ -9,8 +9,8 @@ const Sidebar = ({ buildings, selectedBuilding, setSelectedBuilding, isOpen, set
     const [editingBuildingId, setEditingBuildingId] = useState(null);
     const [editedBuildingName, setEditedBuildingName] = useState('');
     const [editedBuildingAddress, setEditedBuildingAddress] = useState('');
+    const [search, setSearch] = useState('');
 
-    // При сворачивании сайдбара закрывать меню редактирования
     useEffect(() => {
         if (!isOpen) {
             setEditingBuildingId(null);
@@ -19,7 +19,6 @@ const Sidebar = ({ buildings, selectedBuilding, setSelectedBuilding, isOpen, set
         }
     }, [isOpen]);
 
-    // При повторном нажатии на иконку редактирования отменять изменения и закрывать меню
     const handleRename = (buildingId, e) => {
         e.stopPropagation();
         if (editingBuildingId === buildingId) {
@@ -66,6 +65,12 @@ const Sidebar = ({ buildings, selectedBuilding, setSelectedBuilding, isOpen, set
         }
     };
 
+    // Фильтрация зданий по названию или адресу
+    const filteredBuildings = buildings.filter(b => {
+        const s = search.trim().toLowerCase();
+        return !s || b.name.toLowerCase().includes(s) || b.address?.toLowerCase().includes(s);
+    });
+
     return (
         <div className={`sidebar ${isOpen ? 'open' : ''}`}>
             <button 
@@ -92,32 +97,56 @@ const Sidebar = ({ buildings, selectedBuilding, setSelectedBuilding, isOpen, set
             </button>
             <div className="sidebarContent">
                 {isOpen && (
-                    <div className={`createBuilding ${isCreating ? 'active' : ''}`}>
-                        <button onClick={() => setIsCreating(!isCreating)}>
-                            Добавить здание
-                        </button>
-                        <div className={`createBuildingForm ${isCreating ? 'open' : ''}`}>
+                    <>
+                        <div style={{ margin: '8px 0 16px 0' }}>
                             <input
                                 type="text"
-                                placeholder="Новое имя здания"
-                                value={newBuildingName}
-                                onChange={(e) => setNewBuildingName(e.target.value)}
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                placeholder="Поиск здания по названию или адресу..."
+                                className="sidebar-search-input"
+                                style={{
+                                    width: '100%',
+                                    height: '40px',
+                                    borderRadius: '6px',
+                                    border: '1px solid var(--input-border)',
+                                    padding: '0 16px',
+                                    fontSize: 15,
+                                    background: 'var(--input-background)',
+                                    marginBottom: 8,
+                                    boxShadow: 'var(--input-shadow)',
+                                    outline: 'none',
+                                    transition: 'all 0.18s',
+                                }}
                             />
-                            <input
-                                type="text"
-                                placeholder="Адрес здания"
-                                value={newBuildingAddress}
-                                onChange={(e) => setNewBuildingAddress(e.target.value)}
-                            />
-                            <div className="modalButtons">
-                                <button onClick={handleCreate}>Создать</button>
-                                <button onClick={() => setIsCreating(false)}>Отмена</button>
+                        </div>
+                        <div className={`createBuilding ${isCreating ? 'active' : ''}`}>
+                            <button onClick={() => setIsCreating(!isCreating)}>
+                                Добавить здание
+                            </button>
+                            <div className={`createBuildingForm ${isCreating ? 'open' : ''}`}>
+                                <input
+                                    type="text"
+                                    placeholder="Новое имя здания"
+                                    value={newBuildingName}
+                                    onChange={(e) => setNewBuildingName(e.target.value)}
+                                />
+                                <input
+                                    type="text"
+                                    placeholder="Адрес здания"
+                                    value={newBuildingAddress}
+                                    onChange={(e) => setNewBuildingAddress(e.target.value)}
+                                />
+                                <div className="modalButtons">
+                                    <button onClick={handleCreate}>Создать</button>
+                                    <button onClick={() => setIsCreating(false)}>Отмена</button>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    </>
                 )}
                 <div className={`buildingsList ${isCreating ? 'creating' : ''}`}>
-                    {buildings.map(building => (
+                    {filteredBuildings.map(building => (
                         <div key={building.id}>
                             <button
                                 className={`building ${selectedBuilding === building.id ? 'selected' : ''}`}

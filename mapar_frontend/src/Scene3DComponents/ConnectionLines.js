@@ -44,13 +44,13 @@ function Arrow({ start, end, color = '#00aa00' }) {
 
   return (
     <group position={position} rotation={rotation}>
-      {/* Линия */}
+      {}
       <mesh>
         <cylinderGeometry args={[0.02, 0.02, length, 8]} />
         <meshStandardMaterial color={color} />
       </mesh>
       
-      {/* Наконечник стрелки */}
+      {}
       <mesh position={[0, length/2 - 0.15, 0]}>
         <coneGeometry args={[0.08, 0.3, 8]} />
         <meshStandardMaterial color={color} />

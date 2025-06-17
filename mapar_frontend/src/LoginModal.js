@@ -5,19 +5,29 @@ const LoginModal = ({ show, onClose, onLogin, onRegister }) => {
     const [loginTab, setLoginTab] = useState('login');
     const [showLoginPassword, setShowLoginPassword] = useState(false);
     const [showRegisterPassword, setShowRegisterPassword] = useState(false);
+    const [loginError, setLoginError] = useState('');
+    const [registerError, setRegisterError] = useState('');
 
-    const handleLogin = (e) => {
+    const handleLogin = async (e) => {
         e.preventDefault();
+        setLoginError('');
         const username = document.getElementById('loginUsername').value;
         const password = document.getElementById('loginPassword').value;
-        onLogin(username, password);
+        const result = await onLogin(username, password, setLoginError);
+        if (result === false) {
+            setLoginError('Ошибка входа. Проверьте логин и пароль.');
+        }
     };
 
-    const handleRegister = (e) => {
+    const handleRegister = async (e) => {
         e.preventDefault();
+        setRegisterError('');
         const username = document.getElementById('registerUsername').value;
         const password = document.getElementById('registerPassword').value;
-        onRegister(username, password);
+        const result = await onRegister(username, password, setRegisterError);
+        if (result === false) {
+            setRegisterError('Ошибка регистрации. Попробуйте другой логин.');
+        }
     };
 
     if (!show) return null;
@@ -52,10 +62,10 @@ const LoginModal = ({ show, onClose, onLogin, onRegister }) => {
                                     onMouseUp={() => setShowLoginPassword(false)}
                                     onMouseLeave={() => setShowLoginPassword(false)}
                                 >
-                                    {/* SVG глаз */}
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="12" rx="8" ry="5"/><circle cx="12" cy="12" r="2.5"/></svg>
                                 </button>
                             </div>
+                            {loginError && <div style={{ color: '#e74c3c', marginTop: 8, fontSize: 15 }}>{loginError}</div>}
                             <button type="submit">Вход</button>
                         </form>
                     </div>
@@ -86,6 +96,7 @@ const LoginModal = ({ show, onClose, onLogin, onRegister }) => {
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="12" rx="8" ry="5"/><circle cx="12" cy="12" r="2.5"/></svg>
                                 </button>
                             </div>
+                            {registerError && <div style={{ color: '#e74c3c', marginTop: 8, fontSize: 15 }}>{registerError}</div>}
                             <button type="submit">Регистрация</button>
                         </form>
                     </div>

@@ -1,12 +1,14 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { proxy } from "valtio";
 import PropTypes from 'prop-types';
 import NodeControls from './NodeControls';
+import NodeInfo from './NodeInfo';
 import Sidebar from './Sidebar';
 import LoginModal from './LoginModal';
 import BuildingName from './BuildingName';
 import Scene3D from './Scene3D';
 import SaveChangesButton from './SaveChangesButton';
+import StatisticPanel from './StatisticPanel';
 import './App.css';
 
 const modes = ["translate", "rotate", "scale"];
@@ -21,13 +23,31 @@ function App() {
   const [token, setToken] = useState(localStorage.getItem('token') || '');
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isTokenValid, setIsTokenValid] = useState(false);
   const [connections, setConnections] = useState([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [changedNodes, setChangedNodes] = useState(new Map());
   const [isLinkingMode, setIsLinkingMode] = useState(false);
   const [linkingSourceId, setLinkingSourceId] = useState(null);
   const [hoveredNodeId, setHoveredNodeId] = useState(null);
+  const [showQR, setShowQR] = useState(false);
+  const [showStatistic, setShowStatistic] = useState(false);
+
+  const orbitControlsRef = useRef();
+  const modelResetRef = useRef();
+
+  // Сброс положения камеры
+  const handleResetCamera = () => {
+    if (orbitControlsRef.current) {
+      orbitControlsRef.current.reset();
+    }
+  };
+
+  // Сброс трансформации 3D модели
+  const handleResetModel = () => {
+    if (modelResetRef.current) {
+      modelResetRef.current();
+    }
+  };
 
   const validateAndRefreshToken = async () => {
     const currentToken = localStorage.getItem('token');
@@ -67,7 +87,6 @@ function App() {
       const token = localStorage.getItem('token');
       if (token) {
         const isValid = await validateToken(token);
-        setIsTokenValid(isValid);
         if (!isValid) {
           setShowLoginModal(true);
         } else {
@@ -111,52 +130,42 @@ function App() {
     }
   };
 
-  const login = async (username, password) => {
-    try {
-      const response = await fetch(base_url + '/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ username, password })
-      });
-      if (!response.ok) {
-        throw new Error('Network response was not ok ' + response.statusText);
-      }
-      const data = await response.json();
-      localStorage.setItem('token', data.token);
-      setToken(data.token);
-      setShowLoginModal(false);
-      window.location.reload();
-    } catch (error) {
-      alert('Login failed: ' + error.message);
+  const login = async (username, password, setLoginError) => {
+    const response = await fetch(base_url + '/api/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ username, password })
+    });
+    if (!response.ok) {
+      if (setLoginError) setLoginError('Неверный логин или пароль');
+      return false;
     }
+    const data = await response.json();
+    localStorage.setItem('token', data.token);
+    setToken(data.token);
+    setShowLoginModal(false);
+    window.location.reload();
+    return true;
   };
 
-  const register = async (username, password) => {
-    try {
-      const response = await fetch(base_url + '/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ username, password })
-      });
-      if (!response.ok) {
-        throw new Error('Network response was not ok ' + response.statusText);
-      }
-      alert('Registration successful');
-      setShowLoginModal(false);
-      window.location.reload();
-    } catch (error) {
-      alert('Registration failed: ' + error.message);
+  const register = async (username, password, setRegisterError) => {
+    const response = await fetch(base_url + '/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ username, password })
+    });
+    if (!response.ok) {
+      if (setRegisterError) setRegisterError('Ошибка регистрации. Такой логин уже существует или данные некорректны.');
+      return false;
     }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    setToken('');
-    setShowLoginModal(true);
+    if (setRegisterError) setRegisterError('Регистрация прошла успешно!');
+    setShowLoginModal(false);
+    window.location.reload();
+    return true;
   };
 
   const loadBuildings = async () => {
@@ -184,7 +193,7 @@ function App() {
   const updateConnectionsFromNodes = (nodes) => {
     const newConnections = [];
     nodes.forEach(node => {
-      if (node.neighbors && node.neighbors.trim()) {
+      if (node.neighbors?.trim()) {
         const neighborIds = node.neighbors.split(',').map(id => id.trim());
         neighborIds.forEach(neighborId => {
           const connectionExists = newConnections.some(
@@ -286,21 +295,19 @@ function App() {
     }
   };  const createNodeLocal = useCallback(async () => {
     try {
-      // Генерируем случайное целое число от 1000 до 9999
       const randomName = Math.floor(Math.random() * 9000 + 1000);
     
       const newNodeData = {
         name: randomName.toString(),
         translation: '0,0,0',
         quaternion: '0,0,0,1',
-        modelPath: '',  // Пустая строка вместо null
+        modelPath: '', 
         type: '',
-        title: '',     // Пустая строка вместо null
-        neighbors: '', // Пустая строка вместо null
+        title: '',     
+        neighbors: '',
         buildingId: selectedBuilding
       };
     
-      // Создаем узел через API
       const response = await fetch(`${base_url}/buildings/${selectedBuilding}/nodes`, {
         method: 'POST',
         headers: {
@@ -684,87 +691,185 @@ function App() {
   }, []);
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      <Sidebar
-        buildings={buildings}
-        selectedBuilding={selectedBuilding}
-        setSelectedBuilding={setSelectedBuilding}
-        isOpen={isSidebarOpen}
-        setIsOpen={setIsSidebarOpen}
-        onRename={handleRenameBuilding}
-        onDelete={handleDeleteBuilding}
-        onCreate={handleCreateBuilding}
-      />
-      <BuildingName buildingName={buildings.find(building => building.id === selectedBuilding)?.name} />
-      <div id="controls" className={isSidebarOpen ? 'sidebar-open' : ''} 
-        style={{ position: 'absolute', top: '10px', left: '75px', zIndex: 1000 }}>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <NodeControls
-            selectedNode={selectedNode}
-            setSelectedNode={setSelectedNode}
-            buildings={buildings}
-            selectedBuilding={selectedBuilding}
-            setSelectedBuilding={setSelectedBuilding}
-            nodes={nodes}
-            onCreateConnection={handleCreateConnection}
-            createNode={createNodeLocal}
-            updateNode={updateNodeLocal}
-            deleteNode={deleteNodeLocal}
-            isLinkingMode={isLinkingMode}
-            setIsLinkingMode={setIsLinkingMode}
-          />
+    <>
+      <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+        <Sidebar
+          buildings={buildings}
+          selectedBuilding={selectedBuilding}
+          setSelectedBuilding={setSelectedBuilding}
+          isOpen={isSidebarOpen}
+          setIsOpen={setIsSidebarOpen}
+          onRename={handleRenameBuilding}
+          onDelete={handleDeleteBuilding}
+          onCreate={handleCreateBuilding}
+        />
+        <BuildingName 
+          buildingName={buildings.find(building => building.id === selectedBuilding)?.name}
+          onOpenStatistic={() => setShowStatistic(true)}
+        />
+        <div id="controls" className={isSidebarOpen ? 'sidebar-open' : ''} 
+          style={{ position: 'absolute', top: '10px', left: '75px', zIndex: 1000 }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <NodeControls
+              selectedNode={selectedNode ? { ...selectedNode, name: String(selectedNode.name ?? ''), title: String(selectedNode.title ?? '') } : null}
+              setSelectedNode={setSelectedNode}
+              buildings={buildings}
+              selectedBuilding={selectedBuilding}
+              setSelectedBuilding={setSelectedBuilding}
+              nodes={nodes.map(n => ({ ...n, name: String(n.name ?? ''), title: String(n.title ?? '') }))}
+              onCreateConnection={handleCreateConnection}
+              createNode={createNodeLocal}
+              updateNode={updateNodeLocal}
+              deleteNode={deleteNodeLocal}
+              isLinkingMode={isLinkingMode}
+              setIsLinkingMode={setIsLinkingMode}
+              setShowQR={setShowQR}
+              onResetCamera={handleResetCamera}
+              onResetModel={handleResetModel}
+            />
+          </div>
         </div>
-      </div>
-      {isTokenValid ? (
-        <button
-          style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 1000 }}
-          onClick={handleLogout}
-        >
-          Выйти
-        </button>
-      ) : (
-        <button
-          style={{ position: 'absolute', top: '10px', right: '10px', zIndex: 1000 }}
-          onClick={() => {
-            setShowLoginModal(!showLoginModal);
-          }}
-        >
-          Войти
-        </button>
-      )}
-      <Scene3D 
-        nodes={nodes}
-        connections={connections}
-        selectedNodeId={selectedNode?.id}
-        onSelectNode={handleNodeSelect}
-        onNodeMove={handleNodeMove}
-        onAddConnection={handleAddConnection}
-        onRemoveConnection={handleRemoveConnection}
-        isLinkingMode={isLinkingMode}
-        linkingSourceId={linkingSourceId}
-        hoveredNodeId={hoveredNodeId}
-        onNodeHover={handleNodeHover}
-      />
-      <LoginModal
-        show={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        onLogin={login}
-        onRegister={register}
-      />
-      <SaveChangesButton 
-        onSave={handleSaveChanges}
-        visible={hasUnsavedChanges}
-      />
-      <div className="scene-container">
-        <Scene3D
-          nodes={nodes}
+        <Scene3D 
+          nodes={nodes.map(n => ({ ...n, name: String(n.name ?? ''), title: String(n.title ?? '') }))}
           connections={connections}
           selectedNodeId={selectedNode?.id}
-          onSelectNode={setSelectedNode}
+          onSelectNode={handleNodeSelect}
           onNodeMove={handleNodeMove}
+          onAddConnection={handleAddConnection}
+          onRemoveConnection={handleRemoveConnection}
+          isLinkingMode={isLinkingMode}
+          linkingSourceId={linkingSourceId}
+          hoveredNodeId={hoveredNodeId}
+          onNodeHover={handleNodeHover}
+          orbitControlsRef={orbitControlsRef}
+          modelResetRef={modelResetRef}
         />
+        <LoginModal
+          show={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onLogin={login}
+          onRegister={register}
+        />
+        <SaveChangesButton 
+          onSave={handleSaveChanges}
+          visible={hasUnsavedChanges}
+        />
+        <div className="scene-container">
+          <Scene3D
+            nodes={nodes}
+            connections={connections}
+            selectedNodeId={selectedNode?.id}
+            onSelectNode={setSelectedNode}
+            onNodeMove={handleNodeMove}
+          />
+        </div>
+        {showStatistic && (
+          <div style={{ 
+            position: 'fixed', 
+            top: 0, left: 0, width: '100vw', height: '100vh', 
+            background: 'rgba(0,0,0,0.25)', 
+            zIndex: 2000, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            transition: 'background 0.25s',
+            animation: 'fadeInBg 0.25s'
+          }}>
+            <div style={{ 
+              background: '#fff', 
+              borderRadius: 12, 
+              boxShadow: '0 4px 24px rgba(0,0,0,0.15)', 
+              padding: 0, 
+              minWidth: 400, 
+              minHeight: 300, 
+              position: 'relative',
+              animation: 'modalPopIn 0.33s cubic-bezier(.22,1,.36,1)'
+            }}>
+              <button onClick={() => setShowStatistic(false)} style={{ position: 'absolute', top: 12, right: 16, background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#888' }} title="Закрыть">×</button>
+              <StatisticPanel buildingId={selectedBuilding} onClose={() => setShowStatistic(false)} />
+            </div>
+            <style>{`
+              @keyframes fadeInBg {
+                from { background: rgba(0,0,0,0); }
+                to { background: rgba(0,0,0,0.25); }
+              }
+              @keyframes modalPopIn {
+                0% { opacity: 0; transform: scale(0.85) translateY(40px); }
+                100% { opacity: 1; transform: scale(1) translateY(0); }
+              }
+            `}</style>
+          </div>
+        )}
+        <StatisticPanel />
       </div>
-    </div>
+      {showQR && (
+        <NodeInfo 
+          selectedNode={selectedNode ? { ...selectedNode, name: String(selectedNode.name ?? ''), title: String(selectedNode.title ?? '') } : null}
+          building={buildings.find(b => b.id === selectedBuilding)}
+          showQR={showQR}
+          onShowQR={() => setShowQR(true)}
+          onCloseQR={() => setShowQR(false)}
+          nodes={nodes.map(n => ({ ...n, name: String(n.name ?? ''), title: String(n.title ?? ''), type: n.type }))}
+        />
+      )}
+      <div style={{ position: 'fixed', top: 24, right: 32, zIndex: 3000 }}>
+        {token ? (
+          <button
+            onClick={() => {
+              setToken('');
+              localStorage.removeItem('token');
+              window.location.reload();
+            }}
+            style={{
+              background: 'linear-gradient(90deg, #3b82f6 60%, #2563eb 100%)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 10,
+              padding: '7px 22px',
+              fontWeight: 700,
+              fontSize: 16,
+              boxShadow: '0 2px 8px #c7d2fe',
+              cursor: 'pointer',
+              transition: 'background 0.18s',
+              letterSpacing: 0.5,
+              outline: 'none',
+              minWidth: 110
+            }}
+            onMouseOver={e => e.currentTarget.style.background = '#2563eb'}
+            onFocus={e => e.currentTarget.style.background = '#2563eb'}
+            onMouseOut={e => e.currentTarget.style.background = 'linear-gradient(90deg, #3b82f6 60%, #2563eb 100%)'}
+            onBlur={e => e.currentTarget.style.background = 'linear-gradient(90deg, #3b82f6 60%, #2563eb 100%)'}
+          >
+            Выйти
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowLoginModal(true)}
+            style={{
+              background: 'linear-gradient(90deg, #3b82f6 60%, #2563eb 100%)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 10,
+              padding: '8px 22px',
+              fontWeight: 700,
+              fontSize: 16,
+              boxShadow: '0 2px 8px #c7d2fe',
+              cursor: 'pointer',
+              transition: 'background 0.18s',
+              letterSpacing: 0.5,
+              outline: 'none',
+              minWidth: 110
+            }}
+            onMouseOver={e => e.currentTarget.style.background = '#2563eb'}
+            onFocus={e => e.currentTarget.style.background = '#2563eb'}
+            onMouseOut={e => e.currentTarget.style.background = 'linear-gradient(90deg, #3b82f6 60%, #2563eb 100%)'}
+            onBlur={e => e.currentTarget.style.background = 'linear-gradient(90deg, #3b82f6 60%, #2563eb 100%)'}
+          >
+            Войти
+          </button>
+        )}
+      </div>
+    </>
   );
 }
 

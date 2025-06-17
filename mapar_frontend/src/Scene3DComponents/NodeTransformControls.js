@@ -14,7 +14,6 @@ export function NodeTransformControls({ selectedNode, onNodeMove }) {
       const handleChange = () => {
         if (selectedNode) {
           const position = controls.worldPosition;
-          // Сохраняем quaternion при перемещении
           onNodeMove(selectedNode.id, `${position.x},${position.y},${position.z}`);
         }
       };

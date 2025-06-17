@@ -1,6 +1,6 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, Environment } from '@react-three/drei';
+import { OrbitControls, Grid, Environment, TransformControls } from '@react-three/drei';
 import PropTypes from 'prop-types';
 import { CoordinateSystem } from './Scene3DComponents';
 import { Nodes } from './Scene3DComponents/Nodes';
@@ -22,31 +22,50 @@ function Scene3D({
   isLinkingMode,
   linkingSourceId,
   hoveredNodeId,
-  onNodeHover 
+  onNodeHover,
+  orbitControlsRef,
+  modelResetRef
 }) {
   const [modelUrl, setModelUrl] = useState(null);
-  const [modelTransform, setModelTransform] = useState({
-    position: [0, 0, 0],
-    rotation: [0, 0, 0],
-    scale: [1, 1, 1]
-  });
+  const [modelVisible, setModelVisible] = useState(true);
+  const [modelSelected, setModelSelected] = useState(false);
   const [transformMode, setTransformMode] = useState('translate');
-  const modelRef = useRef();
+  const modelGroupRef = useRef();
 
   const handleFileUpload = (model) => {
     if (model.file) {
       const url = URL.createObjectURL(model.file);
       setModelUrl(url);
+      setModelVisible(true);
+      setModelSelected(true);
     }
   };
 
-  const handleModelTransform = (transform) => {
-    setModelTransform(transform);
+  const handleModelDelete = () => {
+    setModelUrl(null);
+    setModelSelected(false);
   };
 
-  const handleTransformModeChange = (mode) => {
-    setTransformMode(mode);
+  const handleModelToggleVisible = () => {
+    setModelVisible((v) => !v);
   };
+
+  // функция для сброса трансформации и видимости
+  const handleModelReset = () => {
+    if (modelGroupRef.current) {
+      modelGroupRef.current.position.set(0, 0, 0);
+      modelGroupRef.current.rotation.set(0, 0, 0);
+      modelGroupRef.current.scale.set(1, 1, 1);
+    }
+    setModelVisible(true);
+  };
+
+  // Экспортируем функцию сброса наружу
+  useEffect(() => {
+    if (modelResetRef) {
+      modelResetRef.current = handleModelReset;
+    }
+  }, [modelResetRef]);
 
   const selectedNode = nodes.find(node => node.id === selectedNodeId);
 
@@ -65,7 +84,12 @@ function Scene3D({
     <div style={{ width: '100%', height: '100%' }}>
       <ModelPanel 
         onFileUpload={handleFileUpload}
-        onTransformModeChange={handleTransformModeChange}
+        onTransformModeChange={setTransformMode}
+        modelName={modelUrl ? 'Загруженная модель' : ''}
+        modelVisible={modelVisible}
+        onToggleVisible={handleModelToggleVisible}
+        onDelete={handleModelDelete}
+        hasModel={!!modelUrl}
         transformMode={transformMode}
       />
 
@@ -80,21 +104,42 @@ function Scene3D({
         <CoordinateHelper size={5} />
         
         <group>
-          {modelUrl && (
-            <>
-              <ModelLoader
-                url={modelUrl}
-                ref={modelRef}
-                position={[0, 0, 0]}
-                scale={[1, 1, 1]}
-                rotation={[0, 0, 0]}
-              />
-              <ModelControls
-                modelRef={modelRef}
-                onTransform={handleModelTransform}
-              />
-            </>
+          {modelUrl && modelVisible && (
+            <TransformControls
+              mode={transformMode}
+              enabled={modelSelected && modelVisible}
+              object={modelGroupRef.current}
+            >
+              <group
+                ref={modelGroupRef}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setModelSelected(true);
+                }}
+              >
+                <ModelLoader
+                  url={modelUrl}
+                />
+              </group>
+            </TransformControls>
           )}
+
+          {modelSelected && modelUrl && (
+            <ModelControls
+              mode={transformMode}
+              setMode={setTransformMode}
+              onDelete={handleModelDelete}
+              onToggleVisible={handleModelToggleVisible}
+              onReset={handleModelReset}
+              visible={modelVisible}
+            />
+          )}
+
+          {/* Сброс выделения по клику вне модели */}
+          <mesh onClick={() => setModelSelected(false)}>
+            <boxGeometry scale={[1000, 1000, 1000]} />
+            <meshBasicMaterial opacity={0} />
+          </mesh>
 
           <ConnectionManager 
             nodes={nodes}
@@ -136,6 +181,7 @@ function Scene3D({
         />
         
         <OrbitControls 
+          ref={orbitControlsRef}
           makeDefault
           enableDamping 
           dampingFactor={0.05}
@@ -164,7 +210,9 @@ Scene3D.propTypes = {
   isLinkingMode: PropTypes.bool.isRequired,
   linkingSourceId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
   hoveredNodeId: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
-  onNodeHover: PropTypes.func
+  onNodeHover: PropTypes.func,
+  orbitControlsRef: PropTypes.object,
+  modelResetRef: PropTypes.object
 };
 
 Scene3D.defaultProps = {
@@ -175,7 +223,9 @@ Scene3D.defaultProps = {
   onNodeMove: undefined,
   linkingSourceId: null,
   hoveredNodeId: null,
-  onNodeHover: undefined
+  onNodeHover: undefined,
+  orbitControlsRef: null,
+  modelResetRef: null
 };
 
 export default Scene3D;

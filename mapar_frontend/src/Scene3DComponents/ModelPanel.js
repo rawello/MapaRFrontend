@@ -2,24 +2,12 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import './ModelPanel.css';
 
-export function ModelPanel({ onFileUpload, onTransformModeChange }) {
+export function ModelPanel({ onFileUpload, onTransformModeChange, modelName, modelVisible, onToggleVisible, onDelete, hasModel }) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [transformMode, setTransformMode] = useState('translate');
-  const [loadedModels, setLoadedModels] = useState([]);
-  
+
   const handleFileUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const model = {
-        id: Date.now(),
-        name: file.name,
-        file: file
-      };
-      setLoadedModels(prev => [...prev, model]);
-      if (onFileUpload) {
-        onFileUpload(model);
-      }
-    }
+    if (onFileUpload) onFileUpload(e.target.files?.[0] ? { id: Date.now(), name: e.target.files[0].name, file: e.target.files[0] } : null);
   };
 
   const handleTransformModeChange = (mode) => {
@@ -50,7 +38,6 @@ export function ModelPanel({ onFileUpload, onTransformModeChange }) {
           {isExpanded ? '▼' : '▲'}
         </span>
       </button>
-      
       <section 
         id="model-panel-content" 
         className="model-panel-content" 
@@ -77,7 +64,6 @@ export function ModelPanel({ onFileUpload, onTransformModeChange }) {
                 Поддерживаемые форматы: .glb, .gltf
               </p>
             </div>
-
             <div className="transform-controls" role="toolbar" aria-label="Инструменты трансформации">
               <div className="control-group">
                 <button 
@@ -103,32 +89,33 @@ export function ModelPanel({ onFileUpload, onTransformModeChange }) {
                 </button>
               </div>
             </div>
-
             <div className="model-list">
               <h4>Загруженные модели</h4>
               <ul className="model-items">
-                {loadedModels.length > 0 ? (
-                  loadedModels.map(model => (
-                    <li key={model.id} className="model-item">
-                      <span className="model-name">{model.name}</span>
-                      <div className="model-actions">
-                        <button 
-                          className="action-button" 
-                          title="Скрыть/Показать"
-                          aria-label={`Скрыть/Показать модель ${model.name}`}
-                        >
-                          <span aria-hidden="true">👁️</span>
-                        </button>
-                        <button 
-                          className="action-button danger" 
-                          title="Удалить"
-                          aria-label={`Удалить модель ${model.name}`}
-                        >
-                          <span aria-hidden="true">❌</span>
-                        </button>
-                      </div>
-                    </li>
-                  ))
+                {hasModel ? (
+                  <li className="model-item">
+                    <span className="model-name">{modelName}</span>
+                    <div className="model-actions">
+                      <button 
+                        className="action-button" 
+                        title="Скрыть/Показать"
+                        aria-label={`Скрыть/Показать модель ${modelName}`}
+                        onClick={onToggleVisible}
+                        style={{ background: modelVisible ? '#10b981' : '#e5e7eb', color: modelVisible ? '#fff' : '#222' }}
+                      >
+                        <span aria-hidden="true">👁️</span>
+                      </button>
+                      <button 
+                        className="action-button danger" 
+                        title="Удалить"
+                        aria-label={`Удалить модель ${modelName}`}
+                        onClick={onDelete}
+                        style={{ background: '#ef4444', color: '#fff', marginLeft: 8 }}
+                      >
+                        <span aria-hidden="true">❌</span>
+                      </button>
+                    </div>
+                  </li>
                 ) : (
                   <li className="empty-list">
                     <p>Нет загруженных моделей</p>
@@ -145,5 +132,10 @@ export function ModelPanel({ onFileUpload, onTransformModeChange }) {
 
 ModelPanel.propTypes = {
   onFileUpload: PropTypes.func,
-  onTransformModeChange: PropTypes.func
+  onTransformModeChange: PropTypes.func,
+  modelName: PropTypes.string,
+  modelVisible: PropTypes.bool,
+  onToggleVisible: PropTypes.func,
+  onDelete: PropTypes.func,
+  hasModel: PropTypes.bool
 };

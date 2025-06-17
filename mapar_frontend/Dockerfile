@@ -1,4 +1,3 @@
-# Этап разработки (для live-перезагрузки)
 FROM node:lts-alpine
 
 WORKDIR /app

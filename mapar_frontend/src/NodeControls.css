@@ -81,19 +81,19 @@
 }
 
 .link-button {
-    background-color: #9b59b6 !important;
+    background: var(--secondary-color) !important;
 }
 
 .link-button:hover {
-    background-color: #8e44ad !important;
+    background: var(--secondary-hover) !important;
 }
 
 .link-button.active {
-    background-color: #ff8800 !important;
+    background: var(--warning-color) !important;
 }
 
 .link-button.active:hover {
-    background-color: #ff6600 !important;
+    background: var(--warning-hover) !important;
 }
 
 .linking-info {
@@ -109,4 +109,70 @@
     margin: 0;
     font-size: 14px;
     text-align: center;
+}
+
+.button-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 0;
+    margin-bottom: 16px;
+}
+
+.button-grid button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 8px;
+    height: 90px;
+    border: none;
+    border-radius: var(--border-radius-small);
+    background: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: var(--shadow-small);
+    margin: 0;
+}
+
+.button-grid button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+}
+
+.button-grid button:active {
+    transform: translateY(0);
+}
+
+.button-grid .link-button {
+    background-color: var(--primary-color) !important;
+}
+
+.button-grid .link-button:hover {
+    background-color: var(--primary-hover) !important;
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-medium);
+}
+
+.button-grid .link-button.active {
+    background-color: #ff9800 !important;
+    color: white !important;
+}
+
+.button-grid .link-button.active:hover {
+    background-color: #ffb74d !important; 
+    color: white !important;
+}
+
+.button-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+}
+
+.button-text {
+    font-size: 13px;
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.2;
 }

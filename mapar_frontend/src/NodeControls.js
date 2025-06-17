@@ -10,13 +10,36 @@ const NodeControls = ({
   updateNode,
   deleteNode,
   isLinkingMode,
-  setIsLinkingMode
+  setIsLinkingMode,
+  setShowQR,
+  onResetCamera,
+  onResetModel
 }) => {
   const handleFieldChange = (field, value) => {
-    setSelectedNode(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setSelectedNode(prev => {
+      // Автоматически обновлять modelPath и title при смене типа
+      if (field === 'type') {
+        if (value === 'view') {
+          return {
+            ...prev,
+            type: value,
+            modelPath: 'view',
+            title: prev.title || ''
+          };
+        } else {
+          return {
+            ...prev,
+            type: '',
+            modelPath: '',
+            title: ''
+          };
+        }
+      }
+      return {
+        ...prev,
+        [field]: value
+      };
+    });
   };
 
   const handlePositionChange = (axis, value) => {
@@ -33,18 +56,42 @@ const NodeControls = ({
     <div className="controls">
       <h3>Управление точками</h3>
       
-      <div className="button-group">
-        <button onClick={createNode}>➕ Новая точка</button>
-        <button onClick={updateNode}>💾 Сохранить</button>
+      <div className="button-grid">
+        <button onClick={createNode}>
+          <span className="button-icon">➕</span>
+          <span className="button-text">Новая точка</span>
+        </button>
+        
+        <button onClick={updateNode}>
+          <span className="button-icon">💾</span>
+          <span className="button-text">Сохранить</span>
+        </button>
+
         <button
           className={`link-button ${isLinkingMode ? 'active' : ''}`}
           onClick={() => setIsLinkingMode(!isLinkingMode)}
         >
-          {isLinkingMode ? '🔗 Завершить связывание' : '🔗 Связать'}
+          <span className="button-icon">🔗</span>
+          <span className="button-text">
+            {isLinkingMode ? 'Завершить связывание' : 'Связать'}
+          </span>
+        </button>
+
+        <button onClick={() => setShowQR(true)} className="qr-button">
+          <span className="button-icon">📱</span>
+          <span className="button-text">QR-код</span>
+        </button>
+
+        <button onClick={onResetCamera} className="reset-camera-button">
+          <span className="button-icon">🎥</span>
+          <span className="button-text">Сбросить положение камеры</span>
+        </button>
+        <button onClick={onResetModel} className="reset-model-button">
+          <span className="button-icon">♻️</span>
+          <span className="button-text">Сбросить трансформацию 3D модели</span>
         </button>
       </div>
 
-      {/* Информация о режиме связывания */}
       {isLinkingMode && (
         <div className="linking-info">
           <p>Выберите две точки для создания связи между ними</p>
@@ -150,7 +197,10 @@ NodeControls.propTypes = {
   updateNode: PropTypes.func.isRequired,
   deleteNode: PropTypes.func.isRequired,
   isLinkingMode: PropTypes.bool.isRequired,
-  setIsLinkingMode: PropTypes.func.isRequired
+  setIsLinkingMode: PropTypes.func.isRequired,
+  setShowQR: PropTypes.func.isRequired,
+  onResetCamera: PropTypes.func.isRequired,
+  onResetModel: PropTypes.func.isRequired
 };
 
 NodeControls.defaultProps = {

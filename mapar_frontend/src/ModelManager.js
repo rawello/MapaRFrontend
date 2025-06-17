@@ -63,7 +63,7 @@ const ModelManager = ({ scene, onModelSelect }) => {
             const modelUrl = e.target.result;
             const blob = dataURLToBlob(modelUrl);
             const objectUrl = URL.createObjectURL(blob);
-            const position = [0, 1, 0]; // Поднимаем модель над плоскостью
+            const position = [0, 1, 0]; 
             const name = file.name;
             const source = 'Local Upload';
             saveModelToLocalStorage(objectUrl, position, name, source);
@@ -93,7 +93,7 @@ const ModelManager = ({ scene, onModelSelect }) => {
         const loadedModelIndex = loadedModels.findIndex((model) => model.url === modelToDelete.url);
         if (loadedModelIndex !== -1) {
             scene.remove(loadedModels[loadedModelIndex].object);
-            URL.revokeObjectURL(modelToDelete.url); // Очистка временного URL
+            URL.revokeObjectURL(modelToDelete.url); 
             setLoadedModels((prev) => prev.filter((_, i) => i !== loadedModelIndex));
         }
     };

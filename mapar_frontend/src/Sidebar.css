@@ -1,6 +1,4 @@
-/* Fluent UI переменные и стили */
 :root {
-    /* Цветовая палитра в стиле Fluent */
     --primary-color: rgb(0, 120, 212);
     --primary-hover: rgb(0, 102, 180);
     --secondary-color: rgb(46, 204, 113);
@@ -13,12 +11,10 @@
     --shadow-color: rgba(0, 0, 0, 0.08);
     --border-color: rgba(0, 0, 0, 0.1);
     
-    /* Обновленные размеры сайдбара */
     --sidebar-collapsed: 72px;
     --sidebar-expanded: 380px;
     --header-height: 56px;
     
-    /* Улучшенные стили для инпутов */
     --input-height: 44px;
     --input-padding: 16px;
     --input-background: rgba(255, 255, 255, 0.9);
@@ -28,7 +24,6 @@
     --input-hover-bg: rgba(255, 255, 255, 1);
     --input-transition: all var(--animation-normal) cubic-bezier(0.4, 0, 0.2, 1);
     
-    /* Остальные переменные */
     --border-radius-small: 4px;
     --border-radius: 6px;
     --border-radius-large: 8px;
@@ -40,12 +35,10 @@
     --shadow-large: 0 8px 16px rgba(0, 0, 0, 0.16);
 }
 
-/* Глобальный box-sizing для предсказуемых размеров */
 *, *::before, *::after {
     box-sizing: border-box;
 }
 
-/* Основной контейнер сайдбара */
 .sidebar {
     position: fixed;
     top: 0;
@@ -72,7 +65,6 @@
     box-shadow: var(--shadow-medium);
 }
 
-/* Кнопка открытия/закрытия теперь абсолютная внутри сайдбара и всегда сверху */
 .toggleButton {
     position: absolute;
     top: 12px;
@@ -95,7 +87,6 @@
     letter-spacing: 1px;
 }
 
-/* В развернутом режиме кнопка остаётся на месте */
 .sidebar.open .toggleButton {
     left: 12px;
 }
@@ -109,7 +100,6 @@
     background-color: var(--pressed-color);
 }
 
-/* Контент сайдбара */
 .sidebarContent {
     padding: 8px;
     padding-top: 60px;
@@ -135,7 +125,6 @@
     background: var(--text-secondary);
 }
 
-/* Создание нового здания */
 .createBuilding {
     margin: 8px;
     background-color: transparent;
@@ -210,7 +199,6 @@
     box-shadow: 0 2px 5px var(--shadow-color);
 }
 
-/* Форма создания здания */
 .createBuildingForm {
     max-height: 0;
     opacity: 0;
@@ -264,7 +252,6 @@
     -webkit-backdrop-filter: blur(8px);
 }
 
-/* Улучшенные стили для списка зданий */
 .buildingsList {
     padding: 8px;
     transition: all var(--animation-normal) cubic-bezier(0.4, 0, 0.2, 1);
@@ -340,7 +327,6 @@
     transform: translateX(0);
 }
 
-/* Кнопки действий */
 .iconButton {
     width: 40px;
     height: 40px;
@@ -374,7 +360,6 @@
     transform: scale(1);
 }
 
-/* Кнопки в модальных окнах */
 .modalButtons {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -415,7 +400,6 @@
     transform: translateY(-2px);
 }
 
-/* Меню редактирования */
 .editMenu {
     max-height: 0;
     opacity: 0;
@@ -501,7 +485,6 @@
     border-color: var(--text-secondary);
 }
 
-/* Общие стили для полей ввода */
 .sidebar input[type="text"] {
     width: 100%;
     height: var(--input-height);
@@ -534,7 +517,6 @@
     box-shadow: var(--input-focus-shadow);
 }
 
-/* Стили для полей ввода */
 input[type="text"] {
     width: 100%;
     height: var(--input-height);
@@ -566,7 +548,32 @@ input[type="text"]:focus {
     box-shadow: var(--input-focus-shadow);
 }
 
-/* Контент с отступом, чтобы не перекрывался сайдбаром */
+.sidebar-search-input {
+    width: 100%;
+    height: 40px;
+    border-radius: var(--border-radius);
+    border: 1px solid var(--input-border);
+    padding: 0 16px;
+    font-size: 15px;
+    background: var(--input-background);
+    margin-bottom: 8px;
+    box-shadow: var(--input-shadow);
+    outline: none;
+    transition: all 0.18s;
+    color: var(--text-color);
+}
+
+.sidebar-search-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: var(--input-focus-shadow);
+    background: #fff;
+}
+
+.sidebar-search-input::placeholder {
+    color: var(--text-secondary);
+    opacity: 1;
+}
+
 body, #root, .app-main-content {
     transition: margin-left var(--animation-normal) cubic-bezier(0.4,0,0.2,1);
 }
@@ -579,7 +586,6 @@ body, #root, .app-main-content {
     margin-left: var(--sidebar-collapsed);
 }
 
-/* Сдвиг плавающих панелей (например, .scene-controls) */
 .scene-controls {
     transition: right var(--animation-normal) cubic-bezier(0.4,0,0.2,1);
     right: calc(var(--sidebar-collapsed) + 20px);
@@ -589,7 +595,6 @@ body, #root, .app-main-content {
     right: calc(var(--sidebar-expanded) + 20px);
 }
 
-/* Адаптивность */
 @media (max-width: 600px) {
     .sidebar {
         width: 90vw;
