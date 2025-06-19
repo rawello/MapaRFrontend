@@ -50,7 +50,6 @@ function Scene3D({
     setModelVisible((v) => !v);
   };
 
-  // функция для сброса трансформации и видимости
   const handleModelReset = () => {
     if (modelGroupRef.current) {
       modelGroupRef.current.position.set(0, 0, 0);
@@ -60,7 +59,6 @@ function Scene3D({
     setModelVisible(true);
   };
 
-  // Экспортируем функцию сброса наружу
   useEffect(() => {
     if (modelResetRef) {
       modelResetRef.current = handleModelReset;
@@ -135,7 +133,6 @@ function Scene3D({
             />
           )}
 
-          {/* Сброс выделения по клику вне модели */}
           <mesh onClick={() => setModelSelected(false)}>
             <boxGeometry scale={[1000, 1000, 1000]} />
             <meshBasicMaterial opacity={0} />
