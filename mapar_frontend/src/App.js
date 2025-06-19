@@ -35,14 +35,12 @@ function App() {
   const orbitControlsRef = useRef();
   const modelResetRef = useRef();
 
-  // Сброс положения камеры
   const handleResetCamera = () => {
     if (orbitControlsRef.current) {
       orbitControlsRef.current.reset();
     }
   };
 
-  // Сброс трансформации 3D модели
   const handleResetModel = () => {
     if (modelResetRef.current) {
       modelResetRef.current();

@@ -17,7 +17,6 @@ const NodeControls = ({
 }) => {
   const handleFieldChange = (field, value) => {
     setSelectedNode(prev => {
-      // Автоматически обновлять modelPath и title при смене типа
       if (field === 'type') {
         if (value === 'view') {
           return {

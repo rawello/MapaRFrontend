@@ -61,7 +61,6 @@ const StatisticPanel = ({ buildingId, onClose }) => {
         const res = await axios.get(url, { headers: { 'Authorization': `Bearer ${token}` } });
         resultData = Array.isArray(res.data) ? res.data : [];
       } else if (period === 'week') {
-        // Получаем все даты между from и to
         const from = dayjs(dateRange.from);
         const to = dayjs(dateRange.to);
         const days = [];
@@ -76,7 +75,6 @@ const StatisticPanel = ({ buildingId, onClose }) => {
         );
         resultData = await Promise.all(promises);
       } else if (period === 'month') {
-        // Получаем все дни месяца
         const daysInMonth = dayjs(`${selectedYear}-${selectedMonth + 1}-01`).daysInMonth();
         const days = Array.from({ length: daysInMonth }, (_, i) => dayjs(`${selectedYear}-${selectedMonth + 1}-${i + 1}`).format('YYYY-MM-DD'));
         const token = localStorage.getItem('token');

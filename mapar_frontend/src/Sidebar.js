@@ -65,7 +65,6 @@ const Sidebar = ({ buildings, selectedBuilding, setSelectedBuilding, isOpen, set
         }
     };
 
-    // Фильтрация зданий по названию или адресу
     const filteredBuildings = buildings.filter(b => {
         const s = search.trim().toLowerCase();
         return !s || b.name.toLowerCase().includes(s) || b.address?.toLowerCase().includes(s);

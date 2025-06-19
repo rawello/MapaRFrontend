@@ -6,7 +6,6 @@ import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import { useGLTF } from '@react-three/drei';
 import PropTypes from 'prop-types';
 
-// Временный фикс для моделей, где встречается Button
 class DummyButton extends THREE.Object3D {}
 class DummyDiv extends THREE.Object3D {}
 extend({ Button: DummyButton, Div: DummyDiv });
@@ -27,15 +26,13 @@ export function ModelLoader({ url, scale, position, rotation }) {
 
   useEffect(() => {
     if (!scene) return;
-    // Сброс transform
     scene.position.set(0, 0, 0);
     scene.rotation.set(0, 0, 0);
     scene.scale.set(1, 1, 1);
-    // Центрирование по bounding box
     const box = new THREE.Box3().setFromObject(scene);
     const center = new THREE.Vector3();
     box.getCenter(center);
-    scene.position.sub(center); // сдвигаем так, чтобы центр был в (0,0,0)
+    scene.position.sub(center);
   }, [scene]);
 
   return (
