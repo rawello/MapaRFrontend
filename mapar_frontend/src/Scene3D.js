@@ -170,7 +170,7 @@ function Scene3D({
           sectionSize={10}
           sectionThickness={1}
           sectionColor="#9d4b4b"
-          fadeDistance={30}
+          fadeDistance={150}
           fadeStrength={1}
           followCamera={false}
           infiniteGrid
